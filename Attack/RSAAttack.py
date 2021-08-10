@@ -22,4 +22,13 @@ def ModInverse(a, n):
 
 def MongomeryProduct(a, b,n,nprime,r):
 	""" Montgomery product."""
-	t = a 
+	t = a * b
+	m = t * nprime % r
+	u = (t + m*n)/r
+	return (u-n,True) if (u >= n) else (u,False)
+
+def rsa(m, d, n, nPrime, r):
+	""" Sign a message using the provided key.
+		This is used to detect whether we have guessed the correct key.
+		We sign a random message from the data set, and if we end up with a
+		signature that matches the corresponding signature in 
