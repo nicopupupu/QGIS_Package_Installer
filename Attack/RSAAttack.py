@@ -31,4 +31,20 @@ def rsa(m, d, n, nPrime, r):
 	""" Sign a message using the provided key.
 		This is used to detect whether we have guessed the correct key.
 		We sign a random message from the data set, and if we end up with a
-		signature that matches the corresponding signature in 
+		signature that matches the corresponding signature in the data set,
+		we are done.
+	"""
+	mm = (m*r)%n
+	x_bar = (1*r)%n
+	k = len(d)
+	sub_count = 0
+	for i in range(0, k):
+		sub = False
+		x_bar, tmp = MongomeryProduct(x_bar,x_bar, n, nPrime, r)
+		if d[i]=='1':
+			x_bar, sub = MongomeryProduct(mm, x_bar, n, nPrime, r)
+
+		sub_count += int(sub)
+	x, tmp = MongomeryProduct(x_bar, 1, n, nPrime, r)
+	return x, sub_count
+
