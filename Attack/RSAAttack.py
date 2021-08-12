@@ -62,4 +62,24 @@ def rsa_sim(m, d, n, nPrime, r, j):
 	k = len(dd)
 	sub = False
 	for i in range(0, k):
-		x_bar, tmp = MongomeryProduct(x_bar,x_bar, n, n
+		x_bar, tmp = MongomeryProduct(x_bar,x_bar, n, nPrime, r)
+		#sub = True
+		if dd[i]=='1':
+			x_bar, sub = MongomeryProduct(mm, x_bar, n, nPrime, r)
+			#print sub
+	x, tmp = MongomeryProduct(x_bar, 1, n, nPrime, r)
+	return x, sub
+
+def do_sim(q_t, q_f, mlist, d, n, nPrime, r, bit):
+	t = []
+	f = []
+	for m in mlist:
+		c, bucket = rsa_sim(m[0], d, n, nPrime, r, bit)
+		if bucket:
+			t.append(m)
+		else:
+			f.append(m)
+	q_t.put(t)
+	q_f.put(f)
+
+de
