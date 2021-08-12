@@ -48,3 +48,18 @@ def rsa(m, d, n, nPrime, r):
 	x, tmp = MongomeryProduct(x_bar, 1, n, nPrime, r)
 	return x, sub_count
 
+
+def rsa_sim(m, d, n, nPrime, r, j):
+	""" Simulates rsa signing with the current derived key.
+		Calculates whether a subtraction was made during step4
+		in the final Montgomery multiplication. 
+	"""
+	mm = (m*r)%n
+	x_bar = (1*r)%n
+	k = len(d)
+	dd = d[:j]
+	dd += '1'
+	k = len(dd)
+	sub = False
+	for i in range(0, k):
+		x_bar, tmp = MongomeryProduct(x_bar,x_bar, n, n
