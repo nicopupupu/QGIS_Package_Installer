@@ -190,4 +190,9 @@ if __name__ == "__main__":
 		n = int(n)
 		e = int(e)
 		_=f.readline() # ignore third line (which is a column description)
-		data = [[int(x) for x in line.split(',
+		data = [[int(x) for x in line.split(',')] for line in f] # read in signature data.
+	# n = 97*103
+	# n = 1970929544600547009951195551285008926853396879274216401752268706841404681558486301260625047332466057195397288315196808109669482273081696371319566859742602315869521815253148612244617512958426682609530067
+	print "n: ", n, "difference cutoff: ", difference, "path:", path
+	# Differences found to be good:
+	
