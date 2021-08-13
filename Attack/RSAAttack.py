@@ -82,4 +82,15 @@ def do_sim(q_t, q_f, mlist, d, n, nPrime, r, bit):
 	q_t.put(t)
 	q_f.put(f)
 
-de
+def split_messages(d, n, nPrime, r, bit,data):
+	""" Splits a data set based on the subtraction in montgomery exponentiation."""
+	mlist = data
+	q_t = Queue()
+	q_f = Queue()
+	processes = []
+	start = 0
+	numProcs = 8
+	NP = 0
+	chunk = len(mlist)//numProcs
+	while start < len(mlist):
+		p = Process(target=do_sim, args=(q_t, q_f, mlist[start:start+chunk], d, n, nPri
