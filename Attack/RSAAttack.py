@@ -112,4 +112,15 @@ def split_messages(d, n, nPrime, r, bit,data):
 def nPrime(n):
 	""" Calculates r^{-1} and n' as used in Montgomery exponentiation"""
 	# n is a k-bit number.
-	# r sho
+	# r should be 2^k
+	k = math.floor(math.log(int(n), 2)) + 1
+	r = int(math.pow(2, k))
+	rInverse = ModInverse(r, n)
+	nPrime = (r * rInverse -1) // n
+	return (r, nPrime)
+
+def RSAAttack(n,data, ratio):
+
+	""" Attempt to recover the private key from a data set. The public key is konwn, i.e. we know 
+		the modulus.
+		The data set should contain a list of messages,
