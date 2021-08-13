@@ -181,4 +181,13 @@ if __name__ == "__main__":
 		difference = 4500000
 		print "usage: python RSAAttack.py <path/to/dataset> <difference>"
 		print "the data should be in a file called data.csv, in the path given."
-		print " <difference> is the difference in nanoseconds between trueSet and falseSet required to guess that
+		print " <difference> is the difference in nanoseconds between trueSet and falseSet required to guess that the bit is 1."
+		print "using defaults:", path, difference
+	
+	with open(path+'/data.csv', 'rb') as f:
+		_ = f.readline() # Ignore first line (which is a column description)
+		n, e = f.readline().split(',') # read in public key
+		n = int(n)
+		e = int(e)
+		_=f.readline() # ignore third line (which is a column description)
+		data = [[int(x) for x in line.split(',
