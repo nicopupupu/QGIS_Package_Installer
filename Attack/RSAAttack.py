@@ -93,4 +93,23 @@ def split_messages(d, n, nPrime, r, bit,data):
 	NP = 0
 	chunk = len(mlist)//numProcs
 	while start < len(mlist):
-		p = Process(target=do_sim, args=(q_t, q_f, mlist[start:start+chunk], d, n, nPri
+		p = Process(target=do_sim, args=(q_t, q_f, mlist[start:start+chunk], d, n, nPrime, r, bit))
+		NP += 1
+		p.start()
+		start += chunk
+		processes.append(p)
+	
+	m_true = []
+	m_false = []
+	for i in range(NP):
+		m_true += q_t.get()
+		m_false += q_f.get()
+
+	while processes:
+		processes.pop().join()
+	return (m_true, m_false)
+
+def nPrime(n):
+	""" Calculates r^{-1} and n' as used in Montgomery exponentiation"""
+	# n is a k-bit number.
+	# r sho
