@@ -142,4 +142,17 @@ def RSAAttack(n,data, ratio):
 			for el in m_false:
 				f.write("%s,2\n" % ','.join(map(str, el)))
 
-		# Calculate average signing time f
+		# Calculate average signing time for each set
+		avg = lambda items: float(sum(items)) / len(items)
+		tavg = map(avg, zip(*m_true))[2]
+		favg = map(avg, zip(*m_false))[2]
+
+		print "Ratio: \t",tavg/favg, "\tDifference:", abs(tavg-favg)
+
+		# Guess bit based on ratio between the average times
+		if abs(tavg-favg) > ratio:
+			newkey += '1'
+			print "Guessing next bit is 1."
+		else:
+			newkey += '0'
+			print 
