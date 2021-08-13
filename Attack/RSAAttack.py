@@ -134,4 +134,12 @@ def RSAAttack(n,data, ratio):
 	while(not finished):
 		# Split the data set into two groups, based on subtraction in Montgomery.
 		(m_true, m_false) = split_messages(newkey, n, n_prime, r, bit, data)
-		# Write the two sets to csv files so they can be 
+		# Write the two sets to csv files so they can be plotted or analyzed further
+		with open(path+'/'+'%04d'%bit+'.dat', 'w') as f: # 0001.csv 0002.csv etc. One csv for each bit.
+			f.write("message,signature,duration,step4\n")
+			for el in m_true:
+				f.write("%s,1\n" % ','.join(map(str, el)))
+			for el in m_false:
+				f.write("%s,2\n" % ','.join(map(str, el)))
+
+		# Calculate average signing time f
