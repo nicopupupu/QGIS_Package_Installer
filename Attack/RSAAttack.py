@@ -163,4 +163,14 @@ def RSAAttack(n,data, ratio):
 		# Check if we found the correct key, or should continue 
 		signMessage1, c = rsa(testMessage1, str(newkey), n, n_prime, r)
 		signMessage2, c = rsa(testMessage2, str(newkey), n, n_prime, r)	
-		if signMessage1==data[0][1] and signMessage2
+		if signMessage1==data[0][1] and signMessage2 == data[1][1]:
+			print "Guessed Correctly! Private key is: \t", newkey
+			finished = True
+		bit+=1 # go to next bit.
+
+if __name__ == "__main__":
+	""" Read in a .csv file containing a list of messages, signatures, and the duration of the signing operation.
+		Try to recover the private key used to sign the messages based on the timing information.
+	"""
+	data = []
+	if len
