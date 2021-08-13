@@ -155,4 +155,12 @@ def RSAAttack(n,data, ratio):
 			print "Guessing next bit is 1."
 		else:
 			newkey += '0'
-			print 
+			print "Guessing next bit is 0."
+		print "Derived key: ", newkey
+
+		testMessage1 = data[0][0]
+		testMessage2 = data[1][0]
+		# Check if we found the correct key, or should continue 
+		signMessage1, c = rsa(testMessage1, str(newkey), n, n_prime, r)
+		signMessage2, c = rsa(testMessage2, str(newkey), n, n_prime, r)	
+		if signMessage1==data[0][1] and signMessage2
