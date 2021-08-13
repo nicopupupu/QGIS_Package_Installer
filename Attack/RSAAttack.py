@@ -123,4 +123,15 @@ def RSAAttack(n,data, ratio):
 
 	""" Attempt to recover the private key from a data set. The public key is konwn, i.e. we know 
 		the modulus.
-		The data set should contain a list of messages,
+		The data set should contain a list of messages, their signatures, and the time the server took
+		to sign that message.
+	"""
+	(r, n_prime) = nPrime(n)
+	# Assume First bit of key is 1
+	newkey = '1'
+	bit = 1
+	finished = False
+	while(not finished):
+		# Split the data set into two groups, based on subtraction in Montgomery.
+		(m_true, m_false) = split_messages(newkey, n, n_prime, r, bit, data)
+		# Write the two sets to csv files so they can be 
