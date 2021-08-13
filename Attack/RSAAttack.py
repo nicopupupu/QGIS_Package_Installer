@@ -173,4 +173,12 @@ if __name__ == "__main__":
 		Try to recover the private key used to sign the messages based on the timing information.
 	"""
 	data = []
-	if len
+	if len(sys.argv) == 3:
+		path = sys.argv[1]
+		difference = sys.argv[2]
+	else:
+		path = 'output/2ms_sleep_33bit_key'
+		difference = 4500000
+		print "usage: python RSAAttack.py <path/to/dataset> <difference>"
+		print "the data should be in a file called data.csv, in the path given."
+		print " <difference> is the difference in nanoseconds between trueSet and falseSet required to guess that
