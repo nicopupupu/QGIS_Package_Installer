@@ -195,4 +195,11 @@ if __name__ == "__main__":
 	# n = 1970929544600547009951195551285008926853396879274216401752268706841404681558486301260625047332466057195397288315196808109669482273081696371319566859742602315869521815253148612244617512958426682609530067
 	print "n: ", n, "difference cutoff: ", difference, "path:", path
 	# Differences found to be good:
-	
+	# 10k_2ms_sleep_new_key: 4476826
+	# dataNoSleep: No luck :(
+	# Ratios found to be good
+	# dataset: 10k messages, 2ms sleep: 1.08
+	# 1.000005
+	# 0.999985296678
+	# 0.999998070523
+	RSAAttack(n,data, int(difference))
