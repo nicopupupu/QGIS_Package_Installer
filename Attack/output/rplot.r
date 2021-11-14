@@ -12,4 +12,9 @@ for(i in 1:length(file.names)){
     png(paste("plots/", file.names[i], ".png", sep=""))
     plot(w1$message, w1$duration, col=c("red","blue")[w1$step4], xlab="message", ylab="duration (ns)", pch=".", cex=1)
 #plot(w1$message, w1$duration)
-#abline(lm(w1$duration
+#abline(lm(w1$duration ~ w1$message), col="red")
+    abline(lm(false$duration ~ false$message), col="blue")
+    abline(lm(true$duration ~ true$message), col="red")
+    dev.off()
+    print(paste("plotted", file.names[i]))
+}
