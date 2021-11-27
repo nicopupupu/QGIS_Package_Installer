@@ -20,4 +20,6 @@
 \begin{abstract}
 \noindent For our project we want to implement the RSA algorithm on the UDOO board.\\
 \\
-RSA relies on modular exponentiation. There are several ways to do this. A commonly used technique for doing the exponentiation is called Montgomery
+RSA relies on modular exponentiation. There are several ways to do this. A commonly used technique for doing the exponentiation is called Montgomery exponentiation. However, this technique is vulnerable to timing attacks. We will implement RSA using both the standard Montgomery exponentiation and an alternative technique called Montgomery powering ladder, and show that the latter is resistant to timing attacks.
+\\
+Finally we will compare the execution time of each implementation, and assess 
