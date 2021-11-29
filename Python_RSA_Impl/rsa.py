@@ -16,4 +16,21 @@ def init():
 	# e = 31
 	n = p*q 					# public
 	tot_n = (p-1)*(q-1)			
-	d = ModInverse
+	d = ModInverse(e, tot_n)	#private
+	config = {'p': p,
+			 'q': q,
+			 'tot_n': tot_n,
+			 'block_size': 83 }
+	keys = {'n': n,
+			'e': e,
+			'd': d }
+
+	return config, keys
+
+def ModInverse(a, n):
+	""" Calculates the modular inverse of a mod n.
+		http://www.wikiwand.com/en/Extended_Euclidean_algorithm#/Modular_integers
+	"""
+	(t, new_t, r, new_r) = 0, 1, int(n), int(a)
+	while new_r != 0:
+		quoti
