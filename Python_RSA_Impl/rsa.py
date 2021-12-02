@@ -72,4 +72,15 @@ def ModExp(M, d, n):
 	if n%2 != 1:
 		raise ValueError("N must be odd!")
 	(r, nprime) = nPrime(n)
-	M_bar = (
+	M_bar = (M * r) % n
+	x_bar = 1 * r % n
+	bit_list = num2bits(d)
+	for e_i in bit_list:
+		x_bar = MongomeryProduct(x_bar, x_bar, nprime, r, n)
+		if e_i == 1:
+			x_bar = MongomeryProduct(M_bar, x_bar, nprime, r, n)
+	x = MongomeryProduct(x_bar, 1, nprime, r, n)
+	return x
+
+def encrypt(message):
+	""" Encrypt a message using the public key in ge
