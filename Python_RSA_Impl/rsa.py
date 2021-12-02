@@ -56,4 +56,20 @@ def nPrime(n):
 	k = math.floor(math.log2(int(n))) + 1
 	r = int(math.pow(2, k))
 	rInverse = ModInverse(r, n)
-	nPrime = (r * rInverse -
+	nPrime = (r * rInverse -1) // n
+	return (r, nPrime)
+
+def num2bits(num):
+	bits = []
+	k = math.floor(math.log2(num)) + 1
+	for i in list(reversed(list(range(0,k)))):
+		bits.append(num >> i & 1)
+	return bits
+
+
+def ModExp(M, d, n):
+	""" Montgomery binary exponentiation"""
+	if n%2 != 1:
+		raise ValueError("N must be odd!")
+	(r, nprime) = nPrime(n)
+	M_bar = (
