@@ -43,4 +43,17 @@ def ModInverse(a, n):
 	return t
 
 def MongomeryProduct(a, b, nprime, r, n):
-	""" Montgomery product.""
+	""" Montgomery product."""
+	t = a * b
+	m = t * nprime % r
+	u = (t + m*n)//r
+	return u-n if (u >= n) else u
+
+def nPrime(n):
+	""" Calculates r^{-1} and n' as used in Montgomery exponentiation"""
+	# n is a k-bit number.
+	# r should be 2^k
+	k = math.floor(math.log2(int(n))) + 1
+	r = int(math.pow(2, k))
+	rInverse = ModInverse(r, n)
+	nPrime = (r * rInverse -
