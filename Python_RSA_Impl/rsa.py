@@ -83,4 +83,13 @@ def ModExp(M, d, n):
 	return x
 
 def encrypt(message):
-	""" Encrypt a message using the public key in ge
+	""" Encrypt a message using the public key in getKeys()""" 
+	e, n = keys['e'], keys['n']
+	number_list = string2num(message)
+	blocks = num2blocks(number_list, config['block_size'])
+	return [ModExp(block, e, n) for block in blocks]
+
+def decrypt(ciphertext):
+	""" Decrypt a ciphertext using the private key in getKeys()"""
+	d, n = keys['d'], keys['n']
+	blocks = [ModExp(block, d, n) for block in 
