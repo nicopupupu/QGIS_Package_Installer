@@ -105,4 +105,11 @@ def sign(message):
 Below functions are used for converting between String message and the corresponding 
 numbers we work with in RSA
 """
-def string2
+def string2num(strn):
+	"""Converts a string to a list of integers based on ASCII values"""
+	# Note that ASCII printable characters range is 0x20 - 0x7E
+	return [ord(char) for char in strn]
+
+def num2string(l):
+	"""Converts a list of integers to a string based on ASCII values"""
+	# Note that ASCII printable characters range is 0x20 - 0x7E
