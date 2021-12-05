@@ -122,4 +122,16 @@ def num2blocks(l, n):
 	# Note that ASCII printable characters range is 0x20 - 0x7E
 	returnList = []
 	toProcess = copy.copy(l)
-	if len(toP
+	if len(toProcess) % n != 0:
+		for i in range(0, n - len(toProcess) % n):
+			toProcess.append(0)
+	for i in range(0, len(toProcess), n):
+		block = 0
+		for j in range(0, n):
+			block += toProcess[i + j] << (8 * (n - j - 1))
+		returnList.append(block)
+	return returnList
+
+def blocks2num(blocks, n):
+	"""inverse function of num2blocks."""
+	toProcess =
