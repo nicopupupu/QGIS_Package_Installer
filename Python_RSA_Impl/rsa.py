@@ -113,3 +113,13 @@ def string2num(strn):
 def num2string(l):
 	"""Converts a list of integers to a string based on ASCII values"""
 	# Note that ASCII printable characters range is 0x20 - 0x7E
+	return ''.join(map(chr, filter(lambda c: c!=0,l)))
+
+def num2blocks(l, n):
+	"""Take a list of integers(each between 0 and 127), and combines them
+	into block size n using base 256. If len(L) % n != 0, use some random
+	junk to fill L to make it."""
+	# Note that ASCII printable characters range is 0x20 - 0x7E
+	returnList = []
+	toProcess = copy.copy(l)
+	if len(toP
