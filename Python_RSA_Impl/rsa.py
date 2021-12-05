@@ -92,4 +92,17 @@ def encrypt(message):
 def decrypt(ciphertext):
 	""" Decrypt a ciphertext using the private key in getKeys()"""
 	d, n = keys['d'], keys['n']
-	blocks = [ModExp(block, d, n) for block in 
+	blocks = [ModExp(block, d, n) for block in ciphertext]
+	number_list = blocks2num(blocks, config['block_size'])
+	return num2string(number_list)
+	# return ModExp(int(ciphertext), int(d), int(n))
+
+
+def sign(message):
+	return (message, encrypt(message))
+
+"""
+Below functions are used for converting between String message and the corresponding 
+numbers we work with in RSA
+"""
+def string2
