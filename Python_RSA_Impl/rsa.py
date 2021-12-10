@@ -134,4 +134,23 @@ def num2blocks(l, n):
 
 def blocks2num(blocks, n):
 	"""inverse function of num2blocks."""
-	toProcess =
+	toProcess = copy.copy(blocks)
+	returnList = []
+	for numBlock in toProcess:
+		inner = []
+		for i in range(0, n):
+			inner.append(numBlock % 256)
+			numBlock >>= 8
+		inner.reverse()
+		returnList.extend(inner)
+	return returnList
+
+config, keys = init()
+
+
+if __name__ == '__main__':
+	"""
+	Example.
+	This will not run if the module is imported.
+	"""
+	print("P: ",
