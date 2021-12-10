@@ -153,4 +153,15 @@ if __name__ == '__main__':
 	Example.
 	This will not run if the module is imported.
 	"""
-	print("P: ",
+	print("P: ",config['p'])
+	print("Q: ",config['q'])
+	print("n: ",keys['n'])
+	print("e: ",keys['e'])
+	print("d: ",keys['d'])
+
+	""" This seems to be close to the largest integer we can encrypt/decrypt properly.
+		Not sure why.
+	"""
+	M = """
+        Bacon ipsum dolor amet ham hock tri-tip hamburger tail boudin pork rump strip steak. 
+        Capicola hamburger pork salami ba
