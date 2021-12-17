@@ -171,4 +171,6 @@ if __name__ == '__main__':
     """
 	C = encrypt(M)
 	S = decrypt(C)
-	print("Message: ",
+	print("Message: ", M)
+	print ("Ciphertext: ",C)
+	print ("Decrypted: ", S)
