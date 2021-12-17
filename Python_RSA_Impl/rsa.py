@@ -164,4 +164,11 @@ if __name__ == '__main__':
 	"""
 	M = """
         Bacon ipsum dolor amet ham hock tri-tip hamburger tail boudin pork rump strip steak. 
-        Capicola hamburger pork salami ba
+        Capicola hamburger pork salami ball tip t-bone, cow pig tri-tip chuck kielbasa 
+        sirloin alcatra. Pastrami ball tip tenderloin ground round, pork belly meatball 
+        swine pork salami pork chop landjaeger sirloin ribeye ham chuck. 
+        Brisket prosciutto kielbasa filet mignon hamburger spare ribs porchetta.
+    """
+	C = encrypt(M)
+	S = decrypt(C)
+	print("Message: ",
