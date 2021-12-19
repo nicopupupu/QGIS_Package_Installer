@@ -61,4 +61,19 @@ def ModExp(M, d, n, focus_bit):
 
 
 def ModExpTrueCount(M, d, n):
-	"""
+	""" Montgomery binary exponentiation"""
+	bit_list = num2bits(d)
+	step4_trues = 0
+	if n%2 != 1:
+		raise ValueError("N must be odd!")
+	(r, nprime) = nPrime(n)
+	M_bar = (M * r) % n
+	x_bar = 1 * r % n
+
+	for i in range(len(bit_list)):
+		e_i = bit_list[i]
+		# print(i, e_i)
+		_, x_bar = MongomeryProduct(x_bar, x_bar, nprime, r, n)
+		if e_i == 1:
+			if(i == 0):
+				_, x_bar = MongomeryProduct(M_bar, 
