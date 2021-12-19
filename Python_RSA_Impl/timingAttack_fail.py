@@ -15,4 +15,22 @@ def ModInverse(a, n):
 		(r, new_r) = (new_r, r - quotient * new_r)
 	if r > 1:
 		raise ArithmeticError("ERROR: %d is not invertible modulo %d. \n r was: %d, new_r was %d " % (a, n, r, new_r))
-	if t
+	if t < 0:
+		t = t + n
+	return t
+
+
+def num2bits(num):
+	bits = []
+	k = math.floor(math.log2(num)) + 1
+	for i in list(reversed(list(range(0,k)))):
+		bits.append(num >> i & 1)
+	return bits
+
+
+def MongomeryProduct(a, b, nprime, r, n):
+	""" Montgomery product."""
+	t = a * b
+	m = t * nprime % r
+	u = (t + m*n)//r
+	return (True, u-n) if 
