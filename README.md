@@ -29,4 +29,10 @@ This runs the attack on the dataset you generated, with `duration` as the differ
 
 The script saves the sets it generates on each bit as `0000x.dat`. These can be used to plot the data for visualizations.
 
-We have prepared an R script called `rplot.r` in the folder Attack/output. 
+We have prepared an R script called `rplot.r` in the folder Attack/output. this can be run with the following command:
+
+```
+$ Rscript rplot.r <some_folder>  # for example 2ms_sleep_33bit_key
+```
+
+this will make a number of plots corresponding to each bit in the key, inside the folder you provided. 
