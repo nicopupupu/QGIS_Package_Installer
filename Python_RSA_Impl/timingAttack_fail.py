@@ -95,4 +95,22 @@ for i in range(0,1000):
 	t, signature = ModExpTrueCount(m,d,n)
 	signatures.append((m,signature,t));
 
-for j in range(len(num2b
+for j in range(len(num2bits(d))):
+	signaturesOne = []
+	signaturesTwo = []
+
+	for i in range(0,len(signatures)):
+		m = signatures[i][0]   
+		#25165823
+		#33554431
+		boolean, signature = ModExp(m,33554431,n,j)
+		if(boolean):
+			signaturesOne.append(signatures[i][2])
+		else:
+			signaturesTwo.append(signatures[i][2])
+
+
+	# print (sum(signaturesOne))
+	# print (sum(signaturesTwo))
+
+	print (num2bits(d)[j],su
