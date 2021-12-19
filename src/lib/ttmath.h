@@ -674,3 +674,377 @@ namespace ttmath
 
 
 	/*!
+		this function calulates the Cotangent
+		look at the description of Cot(...)
+
+		(the abbreviation of Cotangent can be 'ctg' as well)
+	*/
+	template<class ValueType>
+	ValueType Ctg(const ValueType & x, ErrorCode * err = 0)
+	{
+		return Cot(x, err);
+	}
+
+
+	/*
+ 	 *
+	 *  inverse trigonometric functions
+	 *
+	 *
+	 */
+
+	namespace auxiliaryfunctions
+	{
+
+	/*!
+		an auxiliary function for calculating the Arc Sine
+
+		we're calculating asin from the following formula:
+		asin(x) = x + (1*x^3)/(2*3) + (1*3*x^5)/(2*4*5) + (1*3*5*x^7)/(2*4*6*7) + ... 
+		where abs(x) <= 1
+
+		we're using this formula when x is from <0, 1/2>
+	*/
+	template<class ValueType>
+	ValueType ASin_0(const ValueType & x)
+	{
+	ValueType nominator, denominator, nominator_add, nominator_x, denominator_add, denominator_x;
+	ValueType two, result(x), x2(x);
+	ValueType nominator_temp, denominator_temp, old_result = result;
+	uint c = 0;
+
+	x2.Mul(x);
+	two = 2;
+
+	nominator.SetOne();
+	denominator     = two;
+	nominator_add   = nominator;
+	denominator_add = denominator;
+	nominator_x     = x;
+	denominator_x   = 3;
+
+		for(uint i=1 ; i<=TTMATH_ARITHMETIC_MAX_LOOP ; ++i)
+		{
+			c += nominator_x.Mul(x2);
+			nominator_temp = nominator_x;	
+			c += nominator_temp.Mul(nominator);
+			denominator_temp = denominator;
+			c += denominator_temp.Mul(denominator_x);
+			c += nominator_temp.Div(denominator_temp);
+
+			// if there is a carry somewhere we only break the calculating
+			// the result should be ok -- it's from <-pi/2, pi/2>
+			if( c ) 
+				break;
+
+			result.Add(nominator_temp);
+			
+			if( result == old_result )
+				 // there's no sense to calculate more
+				break;
+
+			old_result = result;
+
+
+			c += nominator_add.Add(two);
+			c += denominator_add.Add(two);
+			c += nominator.Mul(nominator_add);
+			c += denominator.Mul(denominator_add);
+			c += denominator_x.Add(two);
+		}
+
+	return result;
+	}
+
+
+
+	/*!
+		an auxiliary function for calculating the Arc Sine
+
+		we're calculating asin from the following formula:
+		asin(x) = pi/2 - sqrt(2)*sqrt(1-x) * asin_temp
+		asin_temp = 1 + (1*(1-x))/((2*3)*(2)) + (1*3*(1-x)^2)/((2*4*5)*(4)) + (1*3*5*(1-x)^3)/((2*4*6*7)*(8)) + ... 
+
+		where abs(x) <= 1
+
+		we're using this formula when x is from (1/2, 1>
+	*/
+	template<class ValueType>
+	ValueType ASin_1(const ValueType & x)
+	{
+	ValueType nominator, denominator, nominator_add, nominator_x, nominator_x_add, denominator_add, denominator_x;
+	ValueType denominator2;
+	ValueType one, two, result;
+	ValueType nominator_temp, denominator_temp, old_result;
+	uint c = 0;
+
+	two = 2;
+
+	one.SetOne();
+	nominator		= one;
+	result			= one;
+	old_result		= result;
+	denominator     = two;
+	nominator_add   = nominator;
+	denominator_add = denominator;
+	nominator_x     = one;
+	nominator_x.Sub(x);
+	nominator_x_add = nominator_x;
+	denominator_x   = 3;
+	denominator2	= two;
+
+
+		for(uint i=1 ; i<=TTMATH_ARITHMETIC_MAX_LOOP ; ++i)
+		{
+			nominator_temp = nominator_x;	
+			c += nominator_temp.Mul(nominator);
+			denominator_temp = denominator;
+			c += denominator_temp.Mul(denominator_x);
+			c += denominator_temp.Mul(denominator2);
+			c += nominator_temp.Div(denominator_temp);
+
+			// if there is a carry somewhere we only break the calculating
+			// the result should be ok -- it's from <-pi/2, pi/2>
+			if( c ) 
+				break;
+
+			result.Add(nominator_temp);
+			
+			if( result == old_result )
+				 // there's no sense to calculate more
+				break;
+
+			old_result = result;
+
+			c += nominator_x.Mul(nominator_x_add);
+			c += nominator_add.Add(two);
+			c += denominator_add.Add(two);
+			c += nominator.Mul(nominator_add);
+			c += denominator.Mul(denominator_add);
+			c += denominator_x.Add(two);
+			c += denominator2.Mul(two);
+		}
+
+		
+		nominator_x_add.exponent.AddOne(); // *2
+		one.exponent.SubOne(); // =0.5
+		nominator_x_add.Pow(one); // =sqrt(nominator_x_add)
+		result.Mul(nominator_x_add);
+
+		one.Set05Pi();
+		one.Sub(result);
+
+	return one;
+	}
+
+
+	} // namespace auxiliaryfunctions
+
+
+	/*!
+		this function calculates the Arc Sine
+		x is from <-1,1>
+	*/
+	template<class ValueType>
+	ValueType ASin(ValueType x, ErrorCode * err = 0)
+	{
+	using namespace auxiliaryfunctions;
+
+		ValueType result, one;
+		one.SetOne();
+		bool change_sign = false;
+
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x;
+		}
+
+		if( x.GreaterWithoutSignThan(one) )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+			return result; // NaN is set by default
+		}
+
+		if( x.IsSign() )
+		{
+			change_sign = true;
+			x.Abs();
+		}
+
+		one.exponent.SubOne(); // =0.5
+
+		// asin(-x) = -asin(x)
+		if( x.GreaterWithoutSignThan(one) )
+			result = ASin_1(x);	
+		else
+			result = ASin_0(x);
+
+		if( change_sign )
+			result.ChangeSign();
+
+		if( err )
+			*err = err_ok;
+
+	return result;
+	}
+
+
+	/*!
+		this function calculates the Arc Cosine
+
+		we're using the formula:
+		acos(x) = pi/2 - asin(x)
+	*/
+	template<class ValueType>
+	ValueType ACos(const ValueType & x, ErrorCode * err = 0)
+	{
+	ValueType temp;
+
+		temp.Set05Pi();
+		temp.Sub(ASin(x, err));
+
+	return temp;
+	}
+
+
+
+	namespace auxiliaryfunctions
+	{
+
+	/*!
+		an auxiliary function for calculating the Arc Tangent
+
+		arc tan (x) where x is in <0; 0.5)
+		(x can be in (-0.5 ; 0.5) too)
+
+		we're using the Taylor series expanded in zero:
+		atan(x) = x - (x^3)/3 + (x^5)/5 - (x^7)/7 + ...
+	*/
+	template<class ValueType>
+	ValueType ATan0(const ValueType & x)
+	{
+		ValueType nominator, denominator, nominator_add, denominator_add, temp;
+		ValueType result, old_result;
+		bool adding = false;
+		uint c = 0;
+
+		result        = x;
+		old_result    = result;
+		nominator     = x;
+		nominator_add = x;
+		nominator_add.Mul(x);
+
+		denominator.SetOne();
+		denominator_add = 2;
+
+		for(uint i=1 ; i<=TTMATH_ARITHMETIC_MAX_LOOP ; ++i)
+		{
+			c += nominator.Mul(nominator_add);
+			c += denominator.Add(denominator_add);
+	
+			temp = nominator;
+			c += temp.Div(denominator);
+
+			if( c )
+				// the result should be ok
+				break;
+
+			if( adding )
+				result.Add(temp);
+			else
+				result.Sub(temp);
+
+			if( result == old_result )
+				 // there's no sense to calculate more
+				break;
+
+			old_result = result;
+			adding     = !adding;
+		}
+
+	return result;
+	}
+
+
+	/*!
+		an auxiliary function for calculating the Arc Tangent
+
+		where x is in <0 ; 1>
+	*/
+	template<class ValueType>
+	ValueType ATan01(const ValueType & x)
+	{
+		ValueType half;
+		half.Set05();
+
+		/*
+			it would be better if we chose about sqrt(2)-1=0.41... instead of 0.5 here
+
+			because as you can see below:
+			when x = sqrt(2)-1
+			abs(x) = abs( (x-1)/(1+x) )
+			so when we're calculating values around x
+			then they will be better converged to each other
+
+			for example if we have x=0.4999 then during calculating ATan0(0.4999)
+			we have to make about 141 iterations but when we have x=0.5
+			then during calculating ATan0( (x-1)/(1+x) ) we have to make 
+			only about 89 iterations (both for Big<3,9>)
+
+			in the future this 0.5 can be changed
+		*/
+		if( x.SmallerWithoutSignThan(half) )
+			return ATan0(x);
+
+
+		/*
+			x>=0.5 and x<=1
+			(x can be even smaller than 0.5)
+
+			y = atac(x)
+			x = tan(y)
+
+			tan(y-b) = (tan(y)-tab(b)) / (1+tan(y)*tan(b))
+			y-b      = atan( (tan(y)-tab(b)) / (1+tan(y)*tan(b)) )
+			y        = b + atan( (x-tab(b)) / (1+x*tan(b)) )
+
+			let b = pi/4
+			tan(b) = tan(pi/4) = 1
+			y = pi/4 + atan( (x-1)/(1+x) )
+
+			so
+			atac(x) = pi/4 + atan( (x-1)/(1+x) )
+			when x->1 (x converges to 1) the (x-1)/(1+x) -> 0
+			and we can use ATan0() function here
+		*/
+
+		ValueType n(x),d(x),one,result;
+
+		one.SetOne();
+		n.Sub(one);
+		d.Add(one);
+		n.Div(d);
+
+		result = ATan0(n);
+
+		n.Set05Pi();
+		n.exponent.SubOne(); // =pi/4
+		result.Add(n);
+
+	return result;
+	}
+
+
+	/*!
+		an auxiliary function for calculating the Arc Tangent
+		where x > 1
+
+		we're using the formula:
+		atan(x) = pi/2 - atan(1/x) for x>0
+	*/
+	template<class ValueType>
