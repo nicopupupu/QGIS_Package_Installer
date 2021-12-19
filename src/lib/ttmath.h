@@ -1048,3 +1048,371 @@ namespace ttmath
 		atan(x) = pi/2 - atan(1/x) for x>0
 	*/
 	template<class ValueType>
+	ValueType ATanGreaterThanPlusOne(const ValueType & x)
+	{
+	ValueType temp, atan;
+
+		temp.SetOne();
+		
+		if( temp.Div(x) )
+		{
+			// if there was a carry here that means x is very big
+			// and atan(1/x) fast converged to 0
+			atan.SetZero();
+		}
+		else
+			atan = ATan01(temp);
+		
+		temp.Set05Pi();
+		temp.Sub(atan);
+
+	return temp;
+	}
+
+	} // namespace auxiliaryfunctions
+
+
+	/*!
+		this function calculates the Arc Tangent
+	*/
+	template<class ValueType>
+	ValueType ATan(ValueType x)
+	{
+	using namespace auxiliaryfunctions;
+
+		ValueType one, result;
+		one.SetOne();
+		bool change_sign = false;
+
+		if( x.IsNan() )
+			return x;
+
+		// if x is negative we're using the formula:
+		// atan(-x) = -atan(x)
+		if( x.IsSign() )
+		{
+			change_sign = true;
+			x.Abs();
+		}
+
+		if( x.GreaterWithoutSignThan(one) )
+			result = ATanGreaterThanPlusOne(x);
+		else
+			result = ATan01(x);
+
+		if( change_sign )
+			result.ChangeSign();
+
+	return result;
+	}
+
+
+	/*!
+		this function calculates the Arc Tangent
+		look at the description of ATan(...)
+
+		(the abbreviation of Arc Tangent can be 'atg' as well)
+	*/
+	template<class ValueType>
+	ValueType ATg(const ValueType & x)
+	{
+		return ATan(x);
+	}
+
+
+	/*!
+		this function calculates the Arc Cotangent
+	
+		we're using the formula:
+		actan(x) = pi/2 - atan(x)
+	*/
+	template<class ValueType>
+	ValueType ACot(const ValueType & x)
+	{
+	ValueType result;
+
+		result.Set05Pi();
+		result.Sub(ATan(x));
+
+	return result;
+	}
+
+
+	/*!
+		this function calculates the Arc Cotangent
+		look at the description of ACot(...)
+
+		(the abbreviation of Arc Cotangent can be 'actg' as well)
+	*/
+	template<class ValueType>
+	ValueType ACtg(const ValueType & x)
+	{
+		return ACot(x);
+	}
+
+
+	/*
+ 	 *
+	 *  hyperbolic functions
+	 *
+	 *
+	 */
+
+
+	/*!
+		this function calculates the Hyperbolic Sine
+
+		we're using the formula sinh(x)= ( e^x - e^(-x) ) / 2
+	*/
+	template<class ValueType>
+	ValueType Sinh(const ValueType & x, ErrorCode * err = 0)
+	{
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x; // NaN
+		}
+
+		ValueType ex, emx;
+		uint c = 0;
+
+		c += ex.Exp(x);
+		c += emx.Exp(-x);
+
+		c += ex.Sub(emx);
+		c += ex.exponent.SubOne();
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return ex;
+	}
+
+
+	/*!
+		this function calculates the Hyperbolic Cosine
+
+		we're using the formula cosh(x)= ( e^x + e^(-x) ) / 2
+	*/
+	template<class ValueType>
+	ValueType Cosh(const ValueType & x, ErrorCode * err = 0)
+	{
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x; // NaN
+		}
+
+		ValueType ex, emx;
+		uint c = 0;
+
+		c += ex.Exp(x);
+		c += emx.Exp(-x);
+
+		c += ex.Add(emx);
+		c += ex.exponent.SubOne();
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return ex;
+	}
+
+
+	/*!
+		this function calculates the Hyperbolic Tangent
+
+		we're using the formula tanh(x)= ( e^x - e^(-x) ) / ( e^x + e^(-x) )
+	*/
+	template<class ValueType>
+	ValueType Tanh(const ValueType & x, ErrorCode * err = 0)
+	{
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x; // NaN
+		}
+
+		ValueType ex, emx, nominator, denominator;
+		uint c = 0;
+
+		c += ex.Exp(x);
+		c += emx.Exp(-x);
+
+		nominator = ex;
+		c += nominator.Sub(emx);
+		denominator = ex;
+		c += denominator.Add(emx);
+		
+		c += nominator.Div(denominator);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return nominator;
+	}
+
+
+	/*!
+		this function calculates the Hyperbolic Tangent
+		look at the description of Tanh(...)
+
+		(the abbreviation of Hyperbolic Tangent can be 'tgh' as well)
+	*/
+	template<class ValueType>
+	ValueType Tgh(const ValueType & x, ErrorCode * err = 0)
+	{
+		return Tanh(x, err);
+	}
+
+	/*!
+		this function calculates the Hyperbolic Cotangent
+
+		we're using the formula coth(x)= ( e^x + e^(-x) ) / ( e^x - e^(-x) )
+	*/
+	template<class ValueType>
+	ValueType Coth(const ValueType & x, ErrorCode * err = 0)
+	{
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x; // NaN
+		}
+
+		if( x.IsZero() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+			return ValueType(); // NaN is set by default
+		}
+
+		ValueType ex, emx, nominator, denominator;
+		uint c = 0;
+
+		c += ex.Exp(x);
+		c += emx.Exp(-x);
+
+		nominator = ex;
+		c += nominator.Add(emx);
+		denominator = ex;
+		c += denominator.Sub(emx);
+		
+		c += nominator.Div(denominator);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return nominator;
+	}
+
+
+	/*!
+		this function calculates the Hyperbolic Cotangent
+		look at the description of Coth(...)
+
+		(the abbreviation of Hyperbolic Cotangent can be 'ctgh' as well)
+	*/
+	template<class ValueType>
+	ValueType Ctgh(const ValueType & x, ErrorCode * err = 0)
+	{
+		return Coth(x, err);
+	}
+
+
+	/*
+ 	 *
+	 *  inverse hyperbolic functions
+	 *
+	 *
+	 */
+
+
+	/*!
+		inverse hyperbolic sine
+
+		asinh(x) = ln( x + sqrt(x^2 + 1) )
+	*/
+	template<class ValueType>
+	ValueType ASinh(const ValueType & x, ErrorCode * err = 0)
+	{
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x; // NaN
+		}
+
+		ValueType xx(x), one, result;
+		uint c = 0;
+		one.SetOne();
+
+		c += xx.Mul(x);
+		c += xx.Add(one);
+		one.exponent.SubOne(); // one=0.5
+		// xx is >= 1 
+		c += xx.PowFrac(one); // xx=sqrt(xx)
+		c += xx.Add(x);
+		c += result.Ln(xx); // xx > 0
+
+		// here can only be a carry
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return result;
+	}
+
+
+	/*!
+		inverse hyperbolic cosine
+
+		acosh(x) = ln( x + sqrt(x^2 - 1) )  x in <1, infinity)
+	*/
+	template<class ValueType>
+	ValueType ACosh(const ValueType & x, ErrorCode * err = 0)
+	{
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x; // NaN
+		}
+
+		ValueType xx(x), one, result;
+		uint c = 0;
+		one.SetOne();
+
+		if( x < one )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return result; // NaN is set by default
+		}
+
+		c += xx.Mul(x);
+		c += xx.Sub(one);
+		// xx is >= 0
+		// we can't call a PowFrac when the 'x' is zero
+		// if x is 0 the sqrt(0) is 0
+		if( !xx.IsZero() )
+		{
+			one.exponent.SubOne(); // one=0.5
+			c += xx.PowFrac(one); // xx=sqrt(xx)
+		}
+		c += xx.Add(x);
+		c += result.Ln(xx); // xx >= 1
+
+		// here can only be a carry
+		if( err )
+			*err = c ? err_overflow : err_ok;
