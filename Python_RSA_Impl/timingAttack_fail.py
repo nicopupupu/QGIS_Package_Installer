@@ -33,4 +33,19 @@ def MongomeryProduct(a, b, nprime, r, n):
 	t = a * b
 	m = t * nprime % r
 	u = (t + m*n)//r
-	return (True, u-n) if 
+	return (True, u-n) if (u >= n) else (False, u)
+
+
+def ModExp(M, d, n, focus_bit):
+	""" Montgomery binary exponentiation"""
+	bit_list = num2bits(d)
+	if(focus_bit >= len(bit_list)):
+		print("error. Focus bit is too large!")
+	step4 = False
+	if n%2 != 1:
+		raise ValueError("N must be odd!")
+	(r, nprime) = nPrime(n)
+	M_bar = (M * r) % n
+	x_bar = 1 * r % n
+
+	for i in rang
