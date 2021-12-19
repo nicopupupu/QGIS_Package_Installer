@@ -113,4 +113,4 @@ for j in range(len(num2bits(d))):
 	# print (sum(signaturesOne))
 	# print (sum(signaturesTwo))
 
-	print (num2bits(d)[j],su
+	print (num2bits(d)[j],sum(signaturesOne)*1.0/sum(signaturesTwo))
