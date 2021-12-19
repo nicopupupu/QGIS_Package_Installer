@@ -76,4 +76,23 @@ def ModExpTrueCount(M, d, n):
 		_, x_bar = MongomeryProduct(x_bar, x_bar, nprime, r, n)
 		if e_i == 1:
 			if(i == 0):
-				_, x_bar = MongomeryProduct(M_bar, 
+				_, x_bar = MongomeryProduct(M_bar, x_bar, nprime, r, n)
+			if _:
+				step4_trues += 1
+	_, x = MongomeryProduct(x_bar, 1, nprime, r, n)
+	return (step4_trues, x)
+
+# P:  7907
+# Q:  7919
+n =  62615533
+# e:  29
+d =  17268885
+
+signatures = []
+ 
+for i in range(0,1000):
+	m = random.randrange(1,2000);
+	t, signature = ModExpTrueCount(m,d,n)
+	signatures.append((m,signature,t));
+
+for j in range(len(num2b
