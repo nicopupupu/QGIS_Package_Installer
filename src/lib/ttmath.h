@@ -1416,3 +1416,370 @@ namespace ttmath
 		// here can only be a carry
 		if( err )
 			*err = c ? err_overflow : err_ok;
+
+	return result;
+	}
+
+
+	/*!
+		inverse hyperbolic tangent
+
+		atanh(x) = 0.5 * ln( (1+x) / (1-x) )  x in (-1, 1)
+	*/
+	template<class ValueType>
+	ValueType ATanh(const ValueType & x, ErrorCode * err = 0)
+	{
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x; // NaN
+		}
+
+		ValueType nominator(x), denominator, one, result;
+		uint c = 0;
+		one.SetOne();
+
+		if( !x.SmallerWithoutSignThan(one) )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return result; // NaN is set by default
+		}
+
+		c += nominator.Add(one);
+		denominator = one;
+		c += denominator.Sub(x);
+		c += nominator.Div(denominator);
+		c += result.Ln(nominator);
+		c += result.exponent.SubOne();
+
+		// here can only be a carry
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return result;
+	}
+
+
+	/*!
+		inverse hyperbolic tantent
+	*/
+	template<class ValueType>
+	ValueType ATgh(const ValueType & x, ErrorCode * err = 0)
+	{
+		return ATanh(x, err);
+	}
+
+
+	/*!
+		inverse hyperbolic cotangent
+
+		acoth(x) = 0.5 * ln( (x+1) / (x-1) )  x in (-infinity, -1) or (1, infinity)
+	*/
+	template<class ValueType>
+	ValueType ACoth(const ValueType & x, ErrorCode * err = 0)
+	{
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x; // NaN
+		}
+
+		ValueType nominator(x), denominator(x), one, result;
+		uint c = 0;
+		one.SetOne();
+
+		if( !x.GreaterWithoutSignThan(one) )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return result; // NaN is set by default
+		}
+
+		c += nominator.Add(one);
+		c += denominator.Sub(one);
+		c += nominator.Div(denominator);
+		c += result.Ln(nominator);
+		c += result.exponent.SubOne();
+
+		// here can only be a carry
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return result;
+	}
+
+
+	/*!
+		inverse hyperbolic cotantent
+	*/
+	template<class ValueType>
+	ValueType ACtgh(const ValueType & x, ErrorCode * err = 0)
+	{
+		return ACoth(x, err);
+	}
+
+
+
+
+
+	/*
+ 	 *
+	 *  functions for converting between degrees, radians and gradians
+	 *
+	 *
+	 */
+
+
+	/*!
+		this function converts degrees to radians
+		
+		it returns: x * pi / 180
+	*/
+	template<class ValueType>
+	ValueType DegToRad(const ValueType & x, ErrorCode * err = 0)
+	{
+	ValueType result, temp;
+	uint c = 0;
+
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x;
+		}
+
+		result = x;
+
+		// it is better to make division first and then multiplication
+		// the result is more accurate especially when x is: 90,180,270 or 360
+		temp = 180;
+		c += result.Div(temp);
+
+		temp.SetPi();
+		c += result.Mul(temp);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return result;
+	}
+
+
+	/*!
+		this function converts radians to degrees
+		
+		it returns: x * 180 / pi
+	*/
+	template<class ValueType>
+	ValueType RadToDeg(const ValueType & x, ErrorCode * err = 0)
+	{
+	ValueType result, delimiter;
+	uint c = 0;
+
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x;
+		}
+
+		result = 180;
+		c += result.Mul(x);
+
+		delimiter.SetPi();
+		c += result.Div(delimiter);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return result;
+	}
+
+
+	/*!
+		this function converts degrees in the long format into one value
+
+		long format: (degrees, minutes, seconds)
+		minutes and seconds must be greater than or equal zero
+
+		result: 
+		if d>=0 : result= d + ((s/60)+m)/60
+		if d<0  : result= d - ((s/60)+m)/60
+
+		((s/60)+m)/60 = (s+60*m)/3600 (second version is faster because 
+		there's only one division)
+
+		for example:
+		DegToDeg(10, 30, 0) = 10.5
+		DegToDeg(10, 24, 35.6)=10.4098(8)
+	*/
+	template<class ValueType>
+	ValueType DegToDeg(	const ValueType & d, const ValueType & m, const ValueType & s,
+						ErrorCode * err = 0)
+	{
+	ValueType delimiter, multipler;
+	uint c = 0;
+
+		if( d.IsNan() || m.IsNan() || s.IsNan() || m.IsSign() || s.IsSign() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+			delimiter.SetZeroNan(); // not needed, only to get rid of GCC warning about an uninitialized variable
+
+		return delimiter;
+		}
+
+		multipler = 60;
+		delimiter = 3600;
+
+		c += multipler.Mul(m);
+		c += multipler.Add(s);
+		c += multipler.Div(delimiter);
+
+		if( d.IsSign() )
+			multipler.ChangeSign();
+
+		c += multipler.Add(d);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return multipler;
+	}
+
+
+	/*!
+		this function converts degrees in the long format to radians
+	*/
+	template<class ValueType>
+	ValueType DegToRad(	const ValueType & d, const ValueType & m, const ValueType & s,
+						ErrorCode * err = 0)
+	{
+		ValueType temp_deg = DegToDeg(d,m,s,err);
+
+		if( err && *err!=err_ok )
+			return temp_deg;
+
+	return DegToRad(temp_deg, err);
+	}
+
+
+	/*!
+		this function converts gradians to radians
+		
+		it returns: x * pi / 200
+	*/
+	template<class ValueType>
+	ValueType GradToRad(const ValueType & x, ErrorCode * err = 0)
+	{
+	ValueType result, temp;
+	uint c = 0;
+
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x;
+		}
+
+		result = x;
+
+		// it is better to make division first and then multiplication
+		// the result is more accurate especially when x is: 100,200,300 or 400
+		temp = 200;
+		c += result.Div(temp);
+
+		temp.SetPi();
+		c += result.Mul(temp);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return result;
+	}
+
+
+	/*!
+		this function converts radians to gradians
+		
+		it returns: x * 200 / pi
+	*/
+	template<class ValueType>
+	ValueType RadToGrad(const ValueType & x, ErrorCode * err = 0)
+	{
+	ValueType result, delimiter;
+	uint c = 0;
+
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x;
+		}
+
+		result = 200;
+		c += result.Mul(x);
+
+		delimiter.SetPi();
+		c += result.Div(delimiter);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return result;
+	}
+
+
+	/*!
+		this function converts degrees to gradians
+		
+		it returns: x * 200 / 180
+	*/
+	template<class ValueType>
+	ValueType DegToGrad(const ValueType & x, ErrorCode * err = 0)
+	{
+	ValueType result, temp;
+	uint c = 0;
+
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x;
+		}
+
+		result = x;
+
+		temp = 200;
+		c += result.Mul(temp);
+
+		temp = 180;
+		c += result.Div(temp);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return result;
+	}
+
+
+	/*!
+		this function converts degrees in the long format to gradians
+	*/
+	template<class ValueType>
+	ValueType DegToGrad( const ValueType & d, const ValueType & m, const ValueType & s,
+						 ErrorCode * err = 0)
+	{
