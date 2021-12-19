@@ -25,4 +25,8 @@ $ python RSAAttack.py output/<some_folder> <duration to split on>
 # for example output/2ms_sleep_33bit_key 4307361
 ```
 
-This runs the attack on the dataset you generated, with `duration` as the difference in average time between each set used decide whether a bit is 0 or 1. A good approach is
+This runs the attack on the dataset you generated, with `duration` as the difference in average time between each set used decide whether a bit is 0 or 1. A good approach is to set `duration` to 0 initially, and then stop the script after a few iterations. Look at the script output for a suitable difference to try and split on.
+
+The script saves the sets it generates on each bit as `0000x.dat`. These can be used to plot the data for visualizations.
+
+We have prepared an R script called `rplot.r` in the folder Attack/output. 
