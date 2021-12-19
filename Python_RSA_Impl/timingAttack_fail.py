@@ -48,4 +48,17 @@ def ModExp(M, d, n, focus_bit):
 	M_bar = (M * r) % n
 	x_bar = 1 * r % n
 
-	for i in rang
+	for i in range(len(bit_list)):
+		e_i = bit_list[i]
+		# print(i, e_i)
+		_, x_bar = MongomeryProduct(x_bar, x_bar, nprime, r, n)
+		if e_i == 1:
+			_, x_bar = MongomeryProduct(M_bar, x_bar, nprime, r, n)
+			if(i == focus_bit):
+				step4 = _
+	_, x = MongomeryProduct(x_bar, 1, nprime, r, n)
+	return (step4, x)
+
+
+def ModExpTrueCount(M, d, n):
+	"""
