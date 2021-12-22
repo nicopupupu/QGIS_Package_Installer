@@ -2471,3 +2471,364 @@ public:
 		return ToUInt(result);
 	}
 
+
+	/*!
+		this method converts 'this' into 'result'
+
+		if the value is too big this method returns a carry (1)
+	*/
+	template<uint int_size>
+	uint ToInt(Int<int_size> & result) const
+	{
+		uint c = ToUIntOrInt(result);
+
+		if( c )
+			return 1;
+
+		uint mask = 0;
+
+		if( IsSign() )
+		{
+			result.ChangeSign();
+			mask = TTMATH_UINT_MAX_VALUE;
+		}
+
+	return ((result.table[int_size-1] & TTMATH_UINT_HIGHEST_BIT) == (mask & TTMATH_UINT_HIGHEST_BIT))? 0 : 1;
+	}
+
+
+	/*!
+		a method for converting 'uint' to this class
+	*/
+	uint FromUInt(uint value)
+	{
+		if( value == 0 )
+		{
+			SetZero();
+			return 0;
+		}
+
+		info = 0;
+
+		for(uint i=0 ; i<man-1 ; ++i)
+			mantissa.table[i] = 0;
+
+		mantissa.table[man-1] = value;
+		exponent = -sint(man-1) * sint(TTMATH_BITS_PER_UINT);
+
+		// there shouldn't be a carry because 'value' has the 'uint' type 
+		Standardizing();
+
+	return 0;
+	}
+
+
+	/*!
+		a method for converting 'uint' to this class
+	*/
+	uint FromInt(uint value)
+	{
+		return FromUInt(value);
+	}
+
+
+	/*!
+		a method for converting 'sint' to this class
+	*/
+	uint FromInt(sint value)
+	{
+	bool is_sign = false;
+
+		if( value < 0 )
+		{
+			value   = -value;
+			is_sign = true;
+		}
+
+		FromUInt(uint(value));
+
+		if( is_sign )
+			SetSign();
+
+	return 0;
+	}
+
+
+
+	/*!
+		this method converts from standard double into this class
+
+		standard double means IEEE-754 floating point value with 64 bits
+		it is as follows (from http://www.psc.edu/general/software/packages/ieee/ieee.html):
+
+		The IEEE double precision floating point standard representation requires
+		a 64 bit word, which may be represented as numbered from 0 to 63, left to
+		right. The first bit is the sign bit, S, the next eleven bits are the
+		exponent bits, 'E', and the final 52 bits are the fraction 'F':
+
+		S EEEEEEEEEEE FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+		0 1        11 12                                                63
+
+		The value V represented by the word may be determined as follows:
+
+		* If E=2047 and F is nonzero, then V=NaN ("Not a number")
+		* If E=2047 and F is zero and S is 1, then V=-Infinity
+		* If E=2047 and F is zero and S is 0, then V=Infinity
+		* If 0<E<2047 then V=(-1)**S * 2 ** (E-1023) * (1.F) where "1.F" is intended
+		  to represent the binary number created by prefixing F with an implicit
+		  leading 1 and a binary point.
+		* If E=0 and F is nonzero, then V=(-1)**S * 2 ** (-1022) * (0.F) These are
+		  "unnormalized" values.
+		* If E=0 and F is zero and S is 1, then V=-0
+		* If E=0 and F is zero and S is 0, then V=0 
+	*/
+
+#ifdef TTMATH_PLATFORM32
+
+	uint FromDouble(double value)
+	{
+		// I am not sure what will be on a platform which has 
+		// a different endianness... but we use this library only
+		// on x86 and amd (intel) 64 bits (as there's a lot of assembler code)
+		union 
+		{
+			double d;
+			uint u[2]; // two 32bit words
+		} temp;
+
+		temp.d = value;
+
+		sint e  = ( temp.u[1] & 0x7FF00000u) >> 20;
+		uint m1 = ((temp.u[1] &    0xFFFFFu) << 11) | (temp.u[0] >> 21);
+		uint m2 = temp.u[0] << 11;
+		
+		if( e == 2047 )
+		{
+			// If E=2047 and F is nonzero, then V=NaN ("Not a number")
+			// If E=2047 and F is zero and S is 1, then V=-Infinity
+			// If E=2047 and F is zero and S is 0, then V=Infinity
+
+			// we do not support -Infinity and +Infinity
+			// we assume that there is always NaN 
+
+			SetNan();
+		}
+		else
+		if( e > 0 )
+		{
+			// If 0<E<2047 then
+			// V=(-1)**S * 2 ** (E-1023) * (1.F)
+			// where "1.F" is intended to represent the binary number
+			// created by prefixing F with an implicit leading 1 and a binary point.
+			
+			FromDouble_SetExpAndMan((temp.u[1] & 0x80000000u) != 0,
+									e - 1023 - man*TTMATH_BITS_PER_UINT + 1, 0x80000000u,
+									m1, m2);
+
+			// we do not have to call Standardizing() here
+			// because the mantissa will have the highest bit set
+		}
+		else
+		{
+			// e == 0
+
+			if( m1 != 0 || m2 != 0 )
+			{
+				// If E=0 and F is nonzero,
+				// then V=(-1)**S * 2 ** (-1022) * (0.F)
+				// These are "unnormalized" values.
+
+				UInt<2> m;
+				m.table[1] = m1;
+				m.table[0] = m2;
+				uint moved = m.CompensationToLeft();
+
+				FromDouble_SetExpAndMan((temp.u[1] & 0x80000000u) != 0,
+										e - 1022 - man*TTMATH_BITS_PER_UINT + 1 - moved, 0,
+										m.table[1], m.table[0]);
+			}
+			else
+			{
+				// If E=0 and F is zero and S is 1, then V=-0
+				// If E=0 and F is zero and S is 0, then V=0 
+
+				// we do not support -0 or 0, only is one 0
+				SetZero();
+			}
+		}
+
+	return 0; // never be a carry
+	}
+
+
+private:
+
+	void FromDouble_SetExpAndMan(bool is_sign, int e, uint mhighest, uint m1, uint m2)
+	{
+		exponent = e;
+
+		if( man > 1 )
+		{
+			mantissa.table[man-1] = m1 | mhighest;
+			mantissa.table[sint(man-2)] = m2;
+			// although man>1 we're using casting into sint
+			// to get rid from a warning which generates Microsoft Visual:
+			// warning C4307: '*' : integral constant overflow
+
+			for(uint i=0 ; i<man-2 ; ++i)
+				mantissa.table[i] = 0;
+		}
+		else
+		{
+			mantissa.table[0] = m1 | mhighest;
+		}
+
+		info = 0;
+	
+		// the value should be different from zero
+		TTMATH_ASSERT( mantissa.IsZero() == false )
+
+		if( is_sign )
+			SetSign();
+	}
+
+
+#else
+
+public:
+
+	// 64bit platforms
+	uint FromDouble(double value)
+	{
+		// I am not sure what will be on a plaltform which has 
+		// a different endianness... but we use this library only
+		// on x86 and amd (intel) 64 bits (as there's a lot of assembler code)
+		union 
+		{
+			double d;
+			uint u; // one 64bit word
+		} temp;
+
+		temp.d = value;
+                          
+		sint e = (temp.u & 0x7FF0000000000000ul) >> 52;
+		uint m = (temp.u &    0xFFFFFFFFFFFFFul) << 11;
+		
+		if( e == 2047 )
+		{
+			// If E=2047 and F is nonzero, then V=NaN ("Not a number")
+			// If E=2047 and F is zero and S is 1, then V=-Infinity
+			// If E=2047 and F is zero and S is 0, then V=Infinity
+
+			// we do not support -Infinity and +Infinity
+			// we assume that there is always NaN 
+
+			SetNan();
+		}
+		else
+		if( e > 0 )
+		{
+			// If 0<E<2047 then
+			// V=(-1)**S * 2 ** (E-1023) * (1.F)
+			// where "1.F" is intended to represent the binary number
+			// created by prefixing F with an implicit leading 1 and a binary point.
+			
+			FromDouble_SetExpAndMan((temp.u & 0x8000000000000000ul) != 0,
+									e - 1023 - man*TTMATH_BITS_PER_UINT + 1,
+									0x8000000000000000ul, m);
+
+			// we do not have to call Standardizing() here
+			// because the mantissa will have the highest bit set
+		}
+		else
+		{
+			// e == 0
+
+			if( m != 0 )
+			{
+				// If E=0 and F is nonzero,
+				// then V=(-1)**S * 2 ** (-1022) * (0.F)
+				// These are "unnormalized" values.
+
+				FromDouble_SetExpAndMan(bool(temp.u & 0x8000000000000000ul),
+										e - 1022 - man*TTMATH_BITS_PER_UINT + 1, 0, m);
+				Standardizing();
+			}
+			else
+			{
+				// If E=0 and F is zero and S is 1, then V=-0
+				// If E=0 and F is zero and S is 0, then V=0 
+
+				// we do not support -0 or 0, only is one 0
+				SetZero();
+			}
+		}
+
+	return 0; // never be a carry
+	}
+
+private:
+
+	void FromDouble_SetExpAndMan(bool is_sign, sint e, uint mhighest, uint m)
+	{
+		exponent = e;
+		mantissa.table[man-1] = m | mhighest;
+
+		for(uint i=0 ; i<man-1 ; ++i)
+			mantissa.table[i] = 0;
+
+		info = 0;
+
+		// the value should be different from zero
+		TTMATH_ASSERT( mantissa.IsZero() == false )
+
+		if( is_sign )
+			SetSign();
+	}
+
+#endif
+
+
+public:
+
+
+	/*!
+		this method converts from float to this class
+	*/
+	uint FromFloat(float value)
+	{
+		return FromDouble(double(value));
+	}
+
+
+	/*!
+		this method converts from this class into the 'double'
+
+		if the value is too big:
+			'result' will be +/-infinity (depending on the sign)
+		if the value is too small:
+			'result' will be 0
+	*/
+	double ToDouble() const
+	{
+	double result;
+
+		ToDouble(result);
+
+	return result;
+	}
+
+
+private:
+
+
+	/*!
+		an auxiliary method to check if the float value is +/-infinity
+		we provide this method because isinf(float) in only in C99 language
+
+		description taken from: http://www.psc.edu/general/software/packages/ieee/ieee.php
+
+		The IEEE single precision floating point standard representation requires a 32 bit word,
+		which may be represented as numbered from 0 to 31, left to right.
+		The first bit is the sign bit, S, the next eight bits are the exponent bits, 'E',
+		and the final 23 bits are the fraction 'F':
