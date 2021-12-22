@@ -1085,3 +1085,328 @@ public:
 
 	return CheckCarry(c);
 	}
+
+
+	/*!
+		bitwise XOR
+
+		this and ss2 must be >= 0
+		return values:
+			0 - ok
+			1 - carry
+			2 - this or ss2 was negative
+	*/
+	uint BitXor(Big<exp, man> ss2)
+	{
+		if( IsNan() || ss2.IsNan() )
+			return CheckCarry(1);
+
+		if( IsSign() || ss2.IsSign() )
+		{
+			SetNan();
+			return 2;
+		}
+		
+		if( ss2.IsZero() )
+			return 0;
+
+		if( IsZero() )
+		{
+			*this = ss2;
+			return 0;
+		}
+
+		Int<exp> exp_offset( exponent );
+		Int<exp> mantissa_size_in_bits( man * TTMATH_BITS_PER_UINT );
+
+		uint c = 0;
+
+		exp_offset.Sub( ss2.exponent );
+		exp_offset.Abs();
+
+		// abs(this) will be >= abs(ss2)
+		if( SmallerWithoutSignThan(ss2) )
+			Swap(ss2);
+
+		if( exp_offset >= mantissa_size_in_bits )
+			// the second value is too small
+			return 0;
+
+		// exp_offset < mantissa_size_in_bits, moving 'exp_offset' times
+		ss2.mantissa.Rcr( exp_offset.ToInt(), 0 );
+		mantissa.BitXor(ss2.mantissa);
+
+		c += Standardizing();
+
+	return CheckCarry(c);
+	}
+
+
+
+	/*!
+		Multiplication this = this * ss2 (ss2 is uint)
+
+		ss2 without a sign
+	*/
+	uint MulUInt(uint ss2)
+	{
+	UInt<man+1> man_result;
+	uint i,c = 0;
+
+		if( IsNan() )
+			return 1;
+
+		if( IsZero() )
+			return 0;
+
+		if( ss2 == 0 )
+		{
+			SetZero();
+			return 0;
+		}
+
+		// man_result = mantissa * ss2.mantissa
+		mantissa.MulInt(ss2, man_result);
+
+		sint bit = UInt<man>::FindLeadingBitInWord(man_result.table[man]); // man - last word
+		
+		if( bit!=-1 && uint(bit) > (TTMATH_BITS_PER_UINT/2) )
+		{
+			// 'i' will be from 0 to TTMATH_BITS_PER_UINT
+			i = man_result.CompensationToLeft();
+			c = exponent.Add( TTMATH_BITS_PER_UINT - i );
+
+			for(i=0 ; i<man ; ++i)
+				mantissa.table[i] = man_result.table[i+1];
+		}
+		else
+		{
+			if( bit != -1 )
+			{
+				man_result.Rcr(bit+1, 0);
+				c += exponent.Add(bit+1);
+			}
+
+			for(i=0 ; i<man ; ++i)
+				mantissa.table[i] = man_result.table[i];
+		}
+
+		c += Standardizing();
+
+	return CheckCarry(c);
+	}
+
+
+	/*!
+		Multiplication this = this * ss2 (ss2 is sint)
+
+		ss2 with a sign
+	*/
+	uint MulInt(sint ss2)
+	{
+		if( IsNan() )
+			return 1;
+
+		if( ss2 == 0 )
+		{
+			SetZero();
+			return 0;
+		}
+
+		if( IsZero() )
+			return 0;
+
+		if( IsSign() == (ss2<0) )
+		{
+			// the signs are the same (both are either - or +), the result is positive
+			Abs();
+		}
+		else
+		{
+			// the signs are different, the result is negative
+			SetSign();
+		}
+
+		if( ss2<0 )
+			ss2 = -ss2;
+
+
+	return MulUInt( uint(ss2) );
+	}
+
+
+private:
+
+
+	/*!
+		this method checks whether a table pointed by 'tab' and 'len'
+		has the value 0.5 decimal
+		(it is treated as the comma operator would be before the highest bit)
+		call this method only if the highest bit is set - you have to test it beforehand
+
+		return:
+		  true  - tab was equal the half (0.5 decimal)
+		  false - tab was greater than a half (greater than 0.5 decimal)
+
+	*/
+	bool CheckGreaterOrEqualHalf(uint * tab, uint len)
+	{
+	uint i;
+
+		TTMATH_ASSERT( len>0 && (tab[len-1] & TTMATH_UINT_HIGHEST_BIT)!=0 )
+
+		for(i=0 ; i<len-1 ; ++i)
+			if( tab[i] != 0 )
+				return false;
+
+		if( tab[i] != TTMATH_UINT_HIGHEST_BIT )
+			return false;
+
+	return true;
+	}
+
+
+private:
+
+	/*!
+		multiplication this = this * ss2
+		this method returns a carry
+	*/
+	uint MulRef(const Big<exp, man> & ss2, bool round = true)
+	{
+	TTMATH_REFERENCE_ASSERT( ss2 )
+
+	UInt<man*2> man_result;
+	uint c = 0;
+	uint i;
+
+		if( IsNan() || ss2.IsNan() )
+			return CheckCarry(1);
+
+		if( IsZero() )
+			return 0;
+
+		if( ss2.IsZero() )
+		{
+			SetZero();
+			return 0;
+		}
+
+		// man_result = mantissa * ss2.mantissa
+		mantissa.MulBig(ss2.mantissa, man_result);
+
+		// 'i' will be from 0 to man*TTMATH_BITS_PER_UINT
+		// because mantissa and ss2.mantissa are standardized 
+		// (the highest bit in man_result is set to 1 or
+		// if there is a zero value in man_result the method CompensationToLeft()
+		// returns 0 but we'll correct this at the end in Standardizing() method)
+		i = man_result.CompensationToLeft();
+		uint exp_add = man * TTMATH_BITS_PER_UINT - i;
+
+		if( exp_add )
+			c += exponent.Add( exp_add );
+
+		c += exponent.Add( ss2.exponent );
+
+		for(i=0 ; i<man ; ++i)
+			mantissa.table[i] = man_result.table[i+man];
+
+		if( round && (man_result.table[man-1] & TTMATH_UINT_HIGHEST_BIT) != 0 )
+		{
+			bool is_half = CheckGreaterOrEqualHalf(man_result.table, man);
+			c += RoundHalfToEven(is_half);		
+		}
+
+		if( IsSign() == ss2.IsSign() )
+		{
+			// the signs are the same, the result is positive
+			Abs();
+		}
+		else
+		{
+			// the signs are different, the result is negative
+			// if the value is zero it will be corrected later in Standardizing method
+			SetSign();
+		}
+
+		c += Standardizing();
+
+	return CheckCarry(c);
+	}
+	
+
+public:
+
+
+	/*!
+		multiplication this = this * ss2
+		this method returns a carry
+	*/
+	uint Mul(const Big<exp, man> & ss2, bool round = true)
+	{
+		if( this == &ss2 )
+		{
+			Big<exp, man> copy_ss2(ss2);
+			return MulRef(copy_ss2, round);
+		}
+		else
+		{
+			return MulRef(ss2, round);
+		}
+	}
+
+
+private:
+
+	/*!
+		division this = this / ss2
+
+		return value:
+		0 - ok
+		1 - carry (in a division carry can be as well)
+		2 - improper argument (ss2 is zero)
+	*/
+	uint DivRef(const Big<exp, man> & ss2, bool round = true)
+	{
+	TTMATH_REFERENCE_ASSERT( ss2 )
+
+	UInt<man*2> man1;
+	UInt<man*2> man2;
+	uint i,c = 0;
+		
+		if( IsNan() || ss2.IsNan() )
+			return CheckCarry(1);
+
+		if( ss2.IsZero() )
+		{
+			SetNan();
+			return 2;
+		}
+
+		if( IsZero() )
+			return 0;
+
+		// !! this two loops can be joined together
+
+		for(i=0 ; i<man ; ++i)
+		{
+			man1.table[i+man] = mantissa.table[i];
+			man2.table[i]     = ss2.mantissa.table[i];
+		}
+
+		for(i=0 ; i<man ; ++i)
+		{
+			man1.table[i] = 0;
+			man2.table[i+man] = 0;
+		}
+
+		man1.Div(man2);
+
+		i = man1.CompensationToLeft();
+
+		if( i )
+			c += exponent.Sub(i);
+
+		c += exponent.Sub(ss2.exponent);
+		
+		for(i=0 ; i<man ; ++i)
