@@ -748,3 +748,340 @@ public:
 private:
 
 	/*!
+		this method does the half-to-even rounding (banker's rounding)
+
+		if is_half is:
+		  true  - that means the rest was equal the half (0.5 decimal)
+		  false - that means the rest was greater than a half (greater than 0.5 decimal)
+
+	    if the rest was less than a half then don't call this method
+		(the rounding should does nothing then)
+	*/
+	uint RoundHalfToEven(bool is_half, bool rounding_up = true)
+	{
+	uint c = 0;
+
+		if( !is_half || mantissa.IsTheLowestBitSet() )
+		{
+			if( rounding_up )
+			{
+				if( mantissa.AddOne() )
+				{
+					mantissa.Rcr(1, 1);
+					c = exponent.AddOne();
+				}
+			}
+			else
+			{
+				#ifdef TTMATH_DEBUG
+				uint c_from_zero =
+				#endif
+				mantissa.SubOne();
+
+				// we're using rounding_up=false in Add() when the mantissas have different signs
+				// mantissa can be zero only when previous mantissa was equal to ss2.mantissa
+				// but in such a case 'last_bit_set' will not be set and consequently 'do_rounding' will be false
+				TTMATH_ASSERT( c_from_zero == 0 )
+			}
+		}
+
+	return c;
+	}
+
+
+
+
+
+	/*!
+	*
+	*	basic mathematic functions
+	*
+	*/
+
+
+	/*!
+		this method adds one to the existing value
+	*/
+	uint AddOne()
+	{
+	Big<exp, man> one;
+
+		one.SetOne();
+
+	return Add(one);
+	}
+
+
+	/*!
+		this method subtracts one from the existing value
+	*/
+	uint SubOne()
+	{
+	Big<exp, man> one;
+
+		one.SetOne();
+
+	return Sub(one);
+	}
+
+
+private:
+
+
+	/*!
+		an auxiliary method for adding
+	*/
+	void AddCheckExponents(	Big<exp, man> & ss2,
+							Int<exp> & exp_offset,
+							bool & last_bit_set,
+							bool & rest_zero,
+							bool & do_adding,
+							bool & do_rounding)
+	{
+	Int<exp> mantissa_size_in_bits( man * TTMATH_BITS_PER_UINT );
+
+		if( exp_offset == mantissa_size_in_bits )
+		{
+			last_bit_set = ss2.mantissa.IsTheHighestBitSet();
+			rest_zero    = ss2.mantissa.AreFirstBitsZero(man*TTMATH_BITS_PER_UINT - 1);
+			do_rounding  = true;	// we'are only rounding
+		}
+		else
+		if( exp_offset < mantissa_size_in_bits )
+		{
+			uint moved = exp_offset.ToInt(); // how many times we must move ss2.mantissa
+			rest_zero  = true;
+
+			if( moved > 0 )
+			{
+				last_bit_set = static_cast<bool>( ss2.mantissa.GetBit(moved-1) );
+
+				if( moved > 1 )
+					rest_zero = ss2.mantissa.AreFirstBitsZero(moved - 1);
+			
+				// (2) moving 'exp_offset' times
+				ss2.mantissa.Rcr(moved, 0);
+			}
+
+			do_adding    = true; 
+			do_rounding  = true;
+		}
+
+		// if exp_offset is greater than mantissa_size_in_bits then we do nothing
+		// ss2 is too small for taking into consideration in the sum
+	}
+
+
+	/*!
+		an auxiliary method for adding
+	*/
+	uint AddMantissas(	Big<exp, man> & ss2,
+						bool & last_bit_set,
+						bool & rest_zero)
+	{
+	uint c = 0;
+
+		if( IsSign() == ss2.IsSign() )
+		{
+			// values have the same signs
+			if( mantissa.Add(ss2.mantissa) )
+			{
+				// we have one bit more from addition (carry)
+				// now rest_zero means the old rest_zero with the old last_bit_set
+				rest_zero    = (!last_bit_set && rest_zero);
+				last_bit_set = mantissa.Rcr(1,1);
+				c += exponent.AddOne();
+			}
+		}
+		else
+		{
+			// values have different signs
+			// there shouldn't be a carry here because
+			// (1) (2) guarantee that the mantissa of this
+			// is greater than or equal to the mantissa of the ss2
+
+			#ifdef TTMATH_DEBUG
+			uint c_temp =
+			#endif
+			mantissa.Sub(ss2.mantissa);
+
+			TTMATH_ASSERT( c_temp == 0 )
+		}
+
+	return c;
+	}
+
+
+public:
+
+
+	/*!
+		Addition this = this + ss2
+
+		it returns carry if the sum is too big
+	*/
+	uint Add(Big<exp, man> ss2, bool round = true, bool adding = true)
+	{
+	bool last_bit_set, rest_zero, do_adding, do_rounding, rounding_up;
+	Int<exp> exp_offset( exponent );
+	uint c = 0;
+
+		if( IsNan() || ss2.IsNan() )
+			return CheckCarry(1);
+
+		if( !adding )
+			ss2.ChangeSign(); // subtracting
+
+		exp_offset.Sub( ss2.exponent );
+		exp_offset.Abs();
+
+		// (1) abs(this) will be >= abs(ss2)
+		if( SmallerWithoutSignThan(ss2) )
+			Swap(ss2);
+	
+		if( ss2.IsZero() )
+			return 0;
+
+		last_bit_set = rest_zero = do_adding = do_rounding = false;
+		rounding_up = (IsSign() == ss2.IsSign());
+
+		AddCheckExponents(ss2, exp_offset, last_bit_set, rest_zero, do_adding, do_rounding);
+
+		if( do_adding )
+			c += AddMantissas(ss2, last_bit_set, rest_zero);
+
+		if( !round || !last_bit_set )
+			do_rounding = false;
+
+		if( do_rounding )
+			c += RoundHalfToEven(rest_zero, rounding_up);
+
+		if( do_adding || do_rounding )
+			c += Standardizing();
+
+	return CheckCarry(c);
+	}
+
+
+	/*!
+		Subtraction this = this - ss2
+
+		it returns carry if the result is too big
+	*/
+	uint Sub(const Big<exp, man> & ss2, bool round = true)
+	{
+		return Add(ss2, round, false);
+	}
+		
+
+	/*!
+		bitwise AND
+
+		this and ss2 must be >= 0
+		return values:
+			0 - ok
+			1 - carry
+			2 - this or ss2 was negative
+	*/
+	uint BitAnd(Big<exp, man> ss2)
+	{
+		if( IsNan() || ss2.IsNan() )
+			return CheckCarry(1);
+
+		if( IsSign() || ss2.IsSign() )
+		{
+			SetNan();
+			return 2;
+		}
+
+		if( IsZero() )
+			return 0;
+
+		if( ss2.IsZero() )
+		{
+			SetZero();
+			return 0;
+		}
+
+		Int<exp> exp_offset( exponent );
+		Int<exp> mantissa_size_in_bits( man * TTMATH_BITS_PER_UINT );
+
+		uint c = 0;
+
+		exp_offset.Sub( ss2.exponent );
+		exp_offset.Abs();
+
+		// abs(this) will be >= abs(ss2)
+		if( SmallerWithoutSignThan(ss2) )
+			Swap(ss2);
+
+		if( exp_offset >= mantissa_size_in_bits )
+		{
+			// the second value is too small
+			SetZero();
+			return 0;
+		}
+
+		// exp_offset < mantissa_size_in_bits, moving 'exp_offset' times
+		ss2.mantissa.Rcr( exp_offset.ToInt(), 0 );
+		mantissa.BitAnd(ss2.mantissa);
+
+		c += Standardizing();
+
+	return CheckCarry(c);
+	}
+
+
+	/*!
+		bitwise OR
+
+		this and ss2 must be >= 0
+		return values:
+			0 - ok
+			1 - carry
+			2 - this or ss2 was negative
+	*/
+	uint BitOr(Big<exp, man> ss2)
+	{
+		if( IsNan() || ss2.IsNan() )
+			return CheckCarry(1);
+
+		if( IsSign() || ss2.IsSign() )
+		{
+			SetNan();
+			return 2;
+		}
+		
+		if( IsZero() )
+		{
+			*this = ss2;
+			return 0;
+		}
+
+		if( ss2.IsZero() )
+			return 0;
+
+		Int<exp> exp_offset( exponent );
+		Int<exp> mantissa_size_in_bits( man * TTMATH_BITS_PER_UINT );
+
+		uint c = 0;
+
+		exp_offset.Sub( ss2.exponent );
+		exp_offset.Abs();
+
+		// abs(this) will be >= abs(ss2)
+		if( SmallerWithoutSignThan(ss2) )
+			Swap(ss2);
+
+		if( exp_offset >= mantissa_size_in_bits )
+			// the second value is too small
+			return 0;
+
+		// exp_offset < mantissa_size_in_bits, moving 'exp_offset' times
+		ss2.mantissa.Rcr( exp_offset.ToInt(), 0 );
+		mantissa.BitOr(ss2.mantissa);
+
+		c += Standardizing();
+
+	return CheckCarry(c);
+	}
