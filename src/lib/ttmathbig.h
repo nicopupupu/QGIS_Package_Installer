@@ -1775,3 +1775,357 @@ public:
 		if( IsZero() )
 		{
 			// 0^pow will be 0 only for pow>0
+			if( pow.IsSign() || pow.IsZero() )
+			{
+				SetNan();
+				return 2;
+			}
+
+			SetZero();
+
+		return 0;
+		}
+
+		if( pow.exponent>-sint(man*TTMATH_BITS_PER_UINT) && pow.exponent<=0 )
+		{
+			if( pow.IsInteger() )
+				return PowInt( pow );
+		}
+
+	return PowFrac(pow);
+	}
+
+
+	/*!
+		this function calculates the square root
+		e.g. let this=9 then this.Sqrt() gives 3
+
+		return: 0 - ok
+				1 - carry
+		        2 - improper argument (this<0 or NaN)
+	*/
+	uint Sqrt()
+	{
+		if( IsNan() || IsSign() )
+		{
+			SetNan();
+			return 2;
+		}
+
+		if( IsZero() )
+			return 0;
+
+		Big<exp, man> old(*this);
+		Big<exp, man> ln;
+		uint c = 0;
+
+		// we're using the formula: sqrt(x) = e ^ (ln(x) / 2)
+		c += ln.Ln(*this);
+		c += ln.exponent.SubOne(); // ln = ln / 2
+		c += Exp(ln);
+
+		// above formula doesn't give accurate results for some integers
+		// e.g. Sqrt(81) would not be 9 but a value very closed to 9
+		// we're rounding the result, calculating result*result and comparing
+		// with the old value, if they are equal then the result is an integer too
+
+		if( !c && old.IsInteger() && !IsInteger() )
+		{
+			Big<exp, man> temp(*this);
+			c += temp.Round();
+
+			Big<exp, man> temp2(temp);
+			c += temp.Mul(temp2);
+
+			if( temp == old )
+				*this = temp2;
+		}
+
+	return CheckCarry(c);
+	}
+
+
+private:
+
+#ifdef TTMATH_CONSTANTSGENERATOR
+public:
+#endif
+
+	/*!
+		Exponent this = exp(x) = e^x where x is in (-1,1)
+
+		we're using the formula exp(x) = 1 + (x)/(1!) + (x^2)/(2!) + (x^3)/(3!) + ...
+	*/
+	void ExpSurrounding0(const Big<exp,man> & x, uint * steps = 0)
+	{
+		TTMATH_REFERENCE_ASSERT( x )
+
+		Big<exp,man> denominator, denominator_i;
+		Big<exp,man> one, old_value, next_part;
+		Big<exp,man> numerator = x;
+		
+		SetOne();
+		one.SetOne();
+		denominator.SetOne();
+		denominator_i.SetOne();
+
+		uint i;
+		old_value = *this;
+
+		// we begin from 1 in order to not test at the beginning
+	#ifdef TTMATH_CONSTANTSGENERATOR
+		for(i=1 ; true ; ++i)
+	#else
+		for(i=1 ; i<=TTMATH_ARITHMETIC_MAX_LOOP ; ++i)
+	#endif
+		{
+			bool testing = ((i & 3) == 0); // it means '(i % 4) == 0'
+
+			next_part = numerator;
+
+			if( next_part.Div( denominator ) )
+				// if there is a carry here we only break the loop 
+				// however the result we return as good
+				// it means there are too many parts of the formula
+				break;
+
+			// there shouldn't be a carry here
+			Add( next_part );
+
+			if( testing )
+			{
+				if( old_value == *this )
+					// we've added next few parts of the formula but the result
+					// is still the same then we break the loop
+					break;
+				else
+					old_value = *this;
+			}
+
+			// we set the denominator and the numerator for a next part of the formula
+			if( denominator_i.Add(one) )
+				// if there is a carry here the result we return as good
+				break;
+
+			if( denominator.Mul(denominator_i) )
+				break;
+
+			if( numerator.Mul(x) )
+				break;
+		}
+
+		if( steps )
+			*steps = i;
+	}
+
+public:
+
+
+	/*!
+		Exponent this = exp(x) = e^x
+
+		we're using the fact that our value is stored in form of:
+			x = mantissa * 2^exponent
+		then
+			e^x = e^(mantissa* 2^exponent) or
+			e^x = (e^mantissa)^(2^exponent)
+
+		'Exp' returns a carry if we can't count the result ('x' is too big)
+	*/
+	uint Exp(const Big<exp,man> & x)
+	{
+	uint c = 0;
+		
+		if( x.IsNan() )
+			return CheckCarry(1);
+
+		if( x.IsZero() )
+		{
+			SetOne();
+		return 0;
+		}
+
+		// m will be the value of the mantissa in range (-1,1)
+		Big<exp,man> m(x);
+		m.exponent = -sint(man*TTMATH_BITS_PER_UINT);
+
+		// 'e_' will be the value of '2^exponent'
+		//   e_.mantissa.table[man-1] = TTMATH_UINT_HIGHEST_BIT;  and
+		//   e_.exponent.Add(1) mean:
+		//     e_.mantissa.table[0] = 1;
+		//     e_.Standardizing();
+		//     e_.exponent.Add(man*TTMATH_BITS_PER_UINT)
+		//     (we must add 'man*TTMATH_BITS_PER_UINT' because we've taken it from the mantissa)
+		Big<exp,man> e_(x);
+		e_.mantissa.SetZero();
+		e_.mantissa.table[man-1] = TTMATH_UINT_HIGHEST_BIT;
+		c += e_.exponent.Add(1);
+		e_.Abs();
+
+		/*
+			now we've got:
+			m - the value of the mantissa in range (-1,1)
+			e_ - 2^exponent
+
+			e_ can be as:
+			...2^-2, 2^-1, 2^0, 2^1, 2^2 ...
+			...1/4 , 1/2 , 1  , 2  , 4   ...
+
+			above one e_ is integer
+
+			if e_ is greater than 1 we calculate the exponent as:
+				e^(m * e_) = ExpSurrounding0(m) ^ e_
+			and if e_ is smaller or equal one we calculate the exponent in this way:
+				e^(m * e_) = ExpSurrounding0(m* e_)
+			because if e_ is smaller or equal 1 then the product of m*e_ is smaller or equal m
+		*/
+
+		if( e_ <= 1 )
+		{
+			m.Mul(e_);
+			ExpSurrounding0(m);
+		}
+		else
+		{
+			ExpSurrounding0(m);
+			c += PowUInt(e_);
+		}
+	
+	return CheckCarry(c);
+	}
+
+
+
+
+private:
+
+#ifdef TTMATH_CONSTANTSGENERATOR
+public:
+#endif
+
+	/*!
+		Natural logarithm this = ln(x) where x in range <1,2)
+
+		we're using the formula:
+		ln x = 2 * [ (x-1)/(x+1) + (1/3)((x-1)/(x+1))^3 + (1/5)((x-1)/(x+1))^5 + ... ]
+	*/
+	void LnSurrounding1(const Big<exp,man> & x, uint * steps = 0)
+	{
+		Big<exp,man> old_value, next_part, denominator, one, two, x1(x), x2(x);
+
+		one.SetOne();
+
+		if( x == one )
+		{
+			// LnSurrounding1(1) is 0
+			SetZero();
+			return;
+		}
+
+		two = 2;
+
+		x1.Sub(one);
+		x2.Add(one);
+
+		x1.Div(x2);
+		x2 = x1;
+		x2.Mul(x1);
+
+		denominator.SetOne();
+		SetZero();
+
+		old_value = *this;
+		uint i;
+
+
+	#ifdef TTMATH_CONSTANTSGENERATOR
+		for(i=1 ; true ; ++i)
+	#else
+		// we begin from 1 in order to not test at the beginning
+		for(i=1 ; i<=TTMATH_ARITHMETIC_MAX_LOOP ; ++i)
+	#endif
+		{
+			bool testing = ((i & 3) == 0); // it means '(i % 4) == 0'
+
+			next_part = x1;
+
+			if( next_part.Div(denominator) )
+				// if there is a carry here we only break the loop 
+				// however the result we return as good
+				// it means there are too many parts of the formula
+				break;
+
+			// there shouldn't be a carry here
+			Add(next_part);
+
+			if( testing )
+			{
+				if( old_value == *this )
+					// we've added next (step_test) parts of the formula but the result
+					// is still the same then we break the loop
+					break;
+				else
+					old_value = *this;
+			}
+
+			if( x1.Mul(x2) )
+				// if there is a carry here the result we return as good
+				break;
+
+			if( denominator.Add(two) )
+				break;
+		}
+
+		// this = this * 2
+		// ( there can't be a carry here because we calculate the logarithm between <1,2) )
+		exponent.AddOne();
+
+		if( steps )
+			*steps = i;
+	}
+
+
+
+
+public:
+
+
+	/*!
+		Natural logarithm this = ln(x)
+		(a logarithm with the base equal 'e')
+
+		we're using the fact that our value is stored in form of:
+			x = mantissa * 2^exponent
+		then
+			ln(x) = ln (mantissa * 2^exponent) = ln (mantissa) + (exponent * ln (2))
+
+		the mantissa we'll show as a value from range <1,2) because the logarithm
+		is decreasing too fast when 'x' is going to 0
+
+		return values:
+			0 - ok
+			1 - overflow (carry)
+			2 - incorrect argument (x<=0)
+	*/
+	uint Ln(const Big<exp,man> & x)
+	{
+		if( x.IsNan() )
+			return CheckCarry(1);
+
+		if( x.IsSign() || x.IsZero() )
+		{
+			SetNan();
+			return 2;
+		}
+
+		Big<exp,man> exponent_temp;
+		exponent_temp.FromInt( x.exponent );
+
+		// m will be the value of the mantissa in range <1,2)
+		Big<exp,man> m(x);
+		m.exponent = -sint(man*TTMATH_BITS_PER_UINT - 1);
+
+		// we must add 'man*TTMATH_BITS_PER_UINT-1' because we've taken it from the mantissa
+		uint c = exponent_temp.Add(man*TTMATH_BITS_PER_UINT-1);
+
+	    LnSurrounding1(m);
