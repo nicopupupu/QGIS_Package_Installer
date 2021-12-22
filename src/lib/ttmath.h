@@ -1783,3 +1783,363 @@ namespace ttmath
 	ValueType DegToGrad( const ValueType & d, const ValueType & m, const ValueType & s,
 						 ErrorCode * err = 0)
 	{
+		ValueType temp_deg = DegToDeg(d,m,s,err);
+
+		if( err && *err!=err_ok )
+			return temp_deg;
+
+	return DegToGrad(temp_deg, err);
+	}
+
+
+	/*!
+		this function converts degrees to gradians
+		
+		it returns: x * 180 / 200
+	*/
+	template<class ValueType>
+	ValueType GradToDeg(const ValueType & x, ErrorCode * err = 0)
+	{
+	ValueType result, temp;
+	uint c = 0;
+
+		if( x.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return x;
+		}
+
+		result = x;
+
+		temp = 180;
+		c += result.Mul(temp);
+
+		temp = 200;
+		c += result.Div(temp);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return result;
+	}
+
+
+
+
+	/*
+ 	 *
+	 *  another functions
+	 *
+	 *
+	 */
+
+
+	/*!
+		this function calculates the square root
+
+		Sqrt(9) = 3
+	*/
+	template<class ValueType>
+	ValueType Sqrt(ValueType x, ErrorCode * err = 0)
+	{
+		if( x.IsNan() || x.IsSign() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+			x.SetNan();
+
+		return x;
+		}
+
+		uint c = x.Sqrt();
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return x;
+	}
+
+
+
+	namespace auxiliaryfunctions
+	{
+
+	template<class ValueType>
+	bool RootCheckIndexSign(ValueType & x, const ValueType & index, ErrorCode * err)
+	{
+		if( index.IsSign() )
+		{
+			// index cannot be negative
+			if( err )
+				*err = err_improper_argument;
+
+			x.SetNan();
+
+		return true;
+		}
+
+	return false;
+	}
+
+
+	template<class ValueType>
+	bool RootCheckIndexZero(ValueType & x, const ValueType & index, ErrorCode * err)
+	{
+		if( index.IsZero() )
+		{
+			if( x.IsZero() )
+			{
+				// there isn't root(0;0) - we assume it's not defined
+				if( err )
+					*err = err_improper_argument;
+
+				x.SetNan();
+
+			return true;
+			}
+	
+			// root(x;0) is 1 (if x!=0)
+			x.SetOne();
+
+			if( err )
+				*err = err_ok;
+
+		return true;
+		}
+
+	return false;
+	}
+
+
+	template<class ValueType>
+	bool RootCheckIndexOne(const ValueType & index, ErrorCode * err)
+	{
+		ValueType one;
+		one.SetOne();
+
+		if( index == one )
+		{
+			//root(x;1) is x
+			// we do it because if we used the PowFrac function
+			// we would lose the precision
+			if( err )
+				*err = err_ok;
+
+		return true;
+		}
+
+	return false;
+	}
+
+
+	template<class ValueType>
+	bool RootCheckIndexTwo(ValueType & x, const ValueType & index, ErrorCode * err)
+	{
+		if( index == 2 )
+		{
+			x = Sqrt(x, err);
+
+		return true;
+		}
+
+	return false;
+	}
+
+
+	template<class ValueType>
+	bool RootCheckIndexFrac(ValueType & x, const ValueType & index, ErrorCode * err)
+	{
+		if( !index.IsInteger() )
+		{
+			// index must be integer
+			if( err )
+				*err = err_improper_argument;
+
+			x.SetNan();
+
+		return true;
+		}
+
+	return false;
+	}
+
+
+	template<class ValueType>
+	bool RootCheckXZero(ValueType & x, ErrorCode * err)
+	{
+		if( x.IsZero() )
+		{
+			// root(0;index) is zero (if index!=0)
+			// RootCheckIndexZero() must be called beforehand
+			x.SetZero();
+
+			if( err )
+				*err = err_ok;
+
+		return true;
+		}
+
+	return false;
+	}
+
+
+	template<class ValueType>
+	bool RootCheckIndex(ValueType & x, const ValueType & index, ErrorCode * err, bool * change_sign)
+	{
+		*change_sign = false;
+
+		if( index.Mod2() )
+		{
+			// index is odd (1,3,5...)
+			if( x.IsSign() )
+			{
+				*change_sign = true;
+				x.Abs();
+			}
+		}
+		else
+		{
+			// index is even
+			// x cannot be negative
+			if( x.IsSign() )
+			{
+				if( err )
+					*err = err_improper_argument;
+
+				x.SetNan();
+
+				return true;
+			}
+		}
+
+	return false;
+	}
+
+
+	template<class ValueType>
+	uint RootCorrectInteger(ValueType & old_x, ValueType & x, const ValueType & index)
+	{
+		if( !old_x.IsInteger() || x.IsInteger() || !index.exponent.IsSign() )
+			return 0;
+
+		// old_x is integer,
+		// x is not integer,
+		// index is relatively small (index.exponent<0 or index.exponent<=0)
+		// (because we're using a special powering algorithm Big::PowUInt())
+
+		uint c = 0;
+
+		ValueType temp(x);
+		c += temp.Round();
+
+		ValueType temp_round(temp);
+		c += temp.PowUInt(index);
+
+		if( temp == old_x )
+			x = temp_round;
+
+	return (c==0)? 0 : 1;
+	}
+
+
+
+	} // namespace auxiliaryfunctions 
+
+
+
+	/*!
+		indexth Root of x
+		index must be integer and not negative <0;1;2;3....)
+
+		if index==0 the result is one
+		if x==0 the result is zero and we assume root(0;0) is not defined
+
+		if index is even (2;4;6...) the result is x^(1/index) and x>0
+		if index is odd (1;2;3;...) the result is either 
+			-(abs(x)^(1/index)) if x<0    or
+			       x^(1/index)) if x>0
+
+		(for index==1 the result is equal x)
+	*/
+	template<class ValueType>
+	ValueType Root(ValueType x, const ValueType & index, ErrorCode * err = 0)
+	{
+		using namespace auxiliaryfunctions;
+
+		if( x.IsNan() || index.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+			x.SetNan();
+
+		return x;
+		}
+
+		if( RootCheckIndexSign(x, index, err) ) return x;
+		if( RootCheckIndexZero(x, index, err) ) return x;
+		if( RootCheckIndexOne (   index, err) ) return x;
+		if( RootCheckIndexTwo (x, index, err) ) return x;
+		if( RootCheckIndexFrac(x, index, err) ) return x;
+		if( RootCheckXZero    (x,        err) ) return x;
+
+		// index integer and index!=0
+		// x!=0
+
+		ValueType old_x(x);
+		bool change_sign;
+
+		if( RootCheckIndex(x, index, err, &change_sign ) ) return x;
+
+		ValueType temp;
+		uint c = 0;
+
+		// we're using the formula: root(x ; n) = exp( ln(x) / n )
+		c += temp.Ln(x);
+		c += temp.Div(index);
+		c += x.Exp(temp);
+
+		if( change_sign )
+		{
+			// x is different from zero
+			x.SetSign();
+		}
+
+		c += RootCorrectInteger(old_x, x, index);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return x;
+	}
+
+
+
+	/*!
+		absolute value of x
+		e.g.  -2 = 2 
+		       2 = 2
+	*/
+	template<class ValueType>
+	ValueType Abs(const ValueType & x)
+	{
+		ValueType result( x );
+		result.Abs();
+
+	return result;
+	}
+
+
+	/*!
+		it returns the sign of the value
+		e.g.  -2 = -1 
+		       0 = 0
+		      10 = 1
+	*/
+	template<class ValueType>
+	ValueType Sgn(ValueType x)
+	{
+		x.Sgn();
