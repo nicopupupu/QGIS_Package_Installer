@@ -2143,3 +2143,392 @@ namespace ttmath
 	ValueType Sgn(ValueType x)
 	{
 		x.Sgn();
+
+	return x;
+	}
+
+
+	/*!
+		the remainder from a division
+
+		e.g.
+		mod( 12.6 ;  3) =  0.6   because 12.6  = 3*4 + 0.6
+		mod(-12.6 ;  3) = -0.6   bacause -12.6 = 3*(-4) + (-0.6)
+		mod( 12.6 ; -3) =  0.6
+		mod(-12.6 ; -3) = -0.6
+	*/
+	template<class ValueType>
+	ValueType Mod(ValueType a, const ValueType & b, ErrorCode * err = 0)
+	{
+		if( a.IsNan() || b.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+			a.SetNan();
+
+		return a;
+		}
+
+		uint c = a.Mod(b);
+
+		if( err )
+			*err = c ? err_overflow : err_ok;
+
+	return a;
+	}
+
+
+
+	namespace auxiliaryfunctions
+	{
+
+	/*!
+		this function is used to store factorials in a given container
+		'more' means how many values should be added at the end
+
+			e.g.
+			std::vector<ValueType> fact;
+			SetFactorialSequence(fact, 3);
+			// now the container has three values: 1  1  2
+
+			SetFactorialSequence(fact, 2);
+			// now the container has five values:  1  1  2  6  24
+	*/
+	template<class ValueType>
+	void SetFactorialSequence(std::vector<ValueType> & fact, uint more = 20)
+	{
+		if( more == 0 )
+			more = 1;
+
+		uint start = static_cast<uint>(fact.size());
+		fact.resize(fact.size() + more);
+
+		if( start == 0 )
+		{
+			fact[0] = 1;
+			++start;
+		}
+
+		for(uint i=start ; i<fact.size() ; ++i)
+		{
+			fact[i] = fact[i-1];
+			fact[i].MulInt(i);
+		}
+	}
+
+
+	/*!
+		an auxiliary function used to calculate Bernoulli numbers
+
+		this function returns a sum:
+		sum(m) = sum_{k=0}^{m-1} {2^k * (m k) * B(k)}    k in [0, m-1]   (m k) means binomial coefficient = (m! / (k! * (m-k)!))
+
+		you should have sufficient factorials in cgamma.fact
+		(cgamma.fact should have at least m items)
+
+		n_ should be equal 2
+	*/
+	template<class ValueType>
+	ValueType SetBernoulliNumbersSum(CGamma<ValueType> & cgamma, const ValueType & n_, uint m,
+									  const volatile StopCalculating * stop = 0)
+	{
+	ValueType k_, temp, temp2, temp3, sum;
+
+		sum.SetZero();
+		
+		for(uint k=0 ; k<m ; ++k)			// k<m means k<=m-1
+		{
+			if( stop && (k & 15)==0 )		// means: k % 16 == 0
+				if( stop->WasStopSignal() )
+					return ValueType();		// NaN
+
+			if( k>1 && (k & 1) == 1 )		// for that k the Bernoulli number is zero
+				continue;
+
+			k_ = k;
+
+			temp = n_;				// n_ is equal 2
+			temp.Pow(k_);
+			// temp = 2^k
+
+			temp2 = cgamma.fact[m];
+			temp3 = cgamma.fact[k];
+			temp3.Mul(cgamma.fact[m-k]);
+			temp2.Div(temp3);
+			// temp2 = (m k) = m! / ( k! * (m-k)! )
+
+			temp.Mul(temp2);
+			temp.Mul(cgamma.bern[k]);
+
+			sum.Add(temp);
+			// sum += 2^k * (m k) * B(k)
+
+			if( sum.IsNan() )
+				break;
+		}
+
+	return sum;
+	}
+
+
+	/*!
+		an auxiliary function used to calculate Bernoulli numbers
+		start is >= 2
+
+		we use the recurrence formula: 
+		   B(m) = 1 / (2*(1 - 2^m)) * sum(m)
+		   where sum(m) is calculated by SetBernoulliNumbersSum()
+	*/
+	template<class ValueType>
+	bool SetBernoulliNumbersMore(CGamma<ValueType> & cgamma, uint start, const volatile StopCalculating * stop = 0)
+	{
+	ValueType denominator, temp, temp2, temp3, m_, sum, sum2, n_, k_;
+
+		const uint n = 2;
+		n_ = n;
+
+		// start is >= 2
+		for(uint m=start ; m<cgamma.bern.size() ; ++m)
+		{
+			if( (m & 1) == 1 )
+			{
+				cgamma.bern[m].SetZero();
+			}
+			else
+			{
+				m_ = m;
+
+				temp = n_;				// n_ = 2
+				temp.Pow(m_);
+				// temp = 2^m
+
+				denominator.SetOne();
+				denominator.Sub(temp);
+				if( denominator.exponent.AddOne() ) // it means: denominator.MulInt(2)
+					denominator.SetNan();
+
+				// denominator = 2 * (1 - 2^m)
+
+				cgamma.bern[m] = SetBernoulliNumbersSum(cgamma, n_, m, stop);
+
+				if( stop && stop->WasStopSignal() )
+				{
+					cgamma.bern.resize(m);		// valid numbers are in [0, m-1]
+					return false;
+				}
+
+				cgamma.bern[m].Div(denominator);
+			}
+		}
+
+	return true;
+	}
+
+
+	/*!
+		this function is used to calculate Bernoulli numbers,
+		returns false if there was a stop signal,
+		'more' means how many values should be added at the end
+
+			e.g.
+			typedef Big<1,2> MyBig;
+			CGamma<MyBig> cgamma;
+			SetBernoulliNumbers(cgamma, 3);
+			// now we have three first Bernoulli numbers:  1  -0.5  0.16667
+			
+			SetBernoulliNumbers(cgamma, 4);
+			// now we have 7 Bernoulli numbers:  1  -0.5  0.16667   0   -0.0333   0   0.0238
+	*/
+	template<class ValueType>
+	bool SetBernoulliNumbers(CGamma<ValueType> & cgamma, uint more = 20, const volatile StopCalculating * stop = 0)
+	{
+		if( more == 0 )
+			more = 1;
+
+		uint start = static_cast<uint>(cgamma.bern.size());
+		cgamma.bern.resize(cgamma.bern.size() + more);
+
+		if( start == 0 )
+		{
+			cgamma.bern[0].SetOne();
+			++start;
+		}
+
+		if( cgamma.bern.size() == 1 )
+			return true;
+
+		if( start == 1 )
+		{
+			cgamma.bern[1].Set05();
+			cgamma.bern[1].ChangeSign();
+			++start;
+		}
+
+		// we should have sufficient factorials in cgamma.fact
+		if( cgamma.fact.size() < cgamma.bern.size() )
+			SetFactorialSequence(cgamma.fact, static_cast<uint>(cgamma.bern.size() - cgamma.fact.size()));
+
+
+	return SetBernoulliNumbersMore(cgamma, start, stop);
+	}
+
+
+	/*!
+		an auxiliary function used to calculate the Gamma() function
+
+		we calculate a sum:
+		   sum(n) = sum_{m=2} { B(m) / ( (m^2 - m) * n^(m-1) )  } = 1/(12*n) - 1/(360*n^3) + 1/(1260*n^5) + ...
+	       B(m) means a mth Bernoulli number
+		   the sum starts from m=2, we calculate as long as the value will not change after adding a next part
+	*/
+	template<class ValueType>
+	ValueType GammaFactorialHighSum(const ValueType & n, CGamma<ValueType> & cgamma, ErrorCode & err,
+									const volatile StopCalculating * stop)
+	{
+	ValueType temp, temp2, denominator, sum, oldsum;
+
+		sum.SetZero();
+
+		for(uint m=2 ; m<TTMATH_ARITHMETIC_MAX_LOOP ; m+=2)
+		{
+			if( stop && (m & 3)==0 ) // (m & 3)==0 means: (m % 4)==0
+				if( stop->WasStopSignal() )
+				{
+					err = err_interrupt;
+					return ValueType(); // NaN
+				}
+
+			temp = (m-1);
+			denominator = n;
+			denominator.Pow(temp);
+			// denominator = n ^ (m-1)
+
+			temp = m;
+			temp2 = temp;
+			temp.Mul(temp2);
+			temp.Sub(temp2);
+			// temp = m^2 - m
+
+			denominator.Mul(temp);
+			// denominator = (m^2 - m) * n ^ (m-1)
+
+			if( m >= cgamma.bern.size() )
+			{
+				if( !SetBernoulliNumbers(cgamma, m - cgamma.bern.size() + 1 + 3, stop) ) // 3 more than needed
+				{
+					// there was the stop signal
+					err = err_interrupt;
+					return ValueType(); // NaN
+				}
+			}
+
+			temp = cgamma.bern[m];
+			temp.Div(denominator);
+
+			oldsum = sum;
+			sum.Add(temp);
+
+			if( sum.IsNan() || oldsum==sum )
+				break;
+		}
+
+	return sum;
+	}
+
+
+	/*!
+		an auxiliary function used to calculate the Gamma() function
+
+		we calculate a helper function GammaFactorialHigh() by using Stirling's series:
+		   n! = (n/e)^n * sqrt(2*pi*n) * exp( sum(n) )
+		   where n is a real number (not only an integer) and is sufficient large (greater than TTMATH_GAMMA_BOUNDARY)
+		   and sum(n) is calculated by GammaFactorialHighSum()
+	*/
+	template<class ValueType>
+	ValueType GammaFactorialHigh(const ValueType & n, CGamma<ValueType> & cgamma, ErrorCode & err,
+								 const volatile StopCalculating * stop)
+	{
+	ValueType temp, temp2, temp3, denominator, sum;
+
+		temp.Set2Pi();
+		temp.Mul(n);
+		temp2 = Sqrt(temp);
+		// temp2 = sqrt(2*pi*n)
+
+		temp = n;
+		temp3.SetE();
+		temp.Div(temp3);
+		temp.Pow(n);
+		// temp = (n/e)^n
+
+		sum = GammaFactorialHighSum(n, cgamma, err, stop);
+		temp3.Exp(sum);
+		// temp3 = exp(sum)
+
+		temp.Mul(temp2);
+		temp.Mul(temp3);
+
+	return temp;
+	}
+
+
+	/*!
+		an auxiliary function used to calculate the Gamma() function
+
+		Gamma(x) = GammaFactorialHigh(x-1)
+	*/
+	template<class ValueType>
+	ValueType GammaPlusHigh(ValueType n, CGamma<ValueType> & cgamma, ErrorCode & err, const volatile StopCalculating * stop)
+	{
+	ValueType one;
+
+		one.SetOne();
+		n.Sub(one);
+
+	return GammaFactorialHigh(n, cgamma, err, stop);
+	}
+
+
+	/*!
+		an auxiliary function used to calculate the Gamma() function
+	
+		we use this function when n is integer and a small value (from 0 to TTMATH_GAMMA_BOUNDARY]
+		we use the formula:
+		   gamma(n) = (n-1)! = 1 * 2 * 3 * ... * (n-1) 
+	*/
+	template<class ValueType>
+	ValueType GammaPlusLowIntegerInt(uint n, CGamma<ValueType> & cgamma)
+	{
+		TTMATH_ASSERT( n > 0 )
+
+		if( n - 1 < static_cast<uint>(cgamma.fact.size()) )
+			return cgamma.fact[n - 1];
+
+		ValueType res;
+		uint start = 2;
+
+		if( cgamma.fact.size() < 2 )
+		{
+			res.SetOne();
+		}
+		else
+		{
+			start = static_cast<uint>(cgamma.fact.size());
+			res   = cgamma.fact[start-1];
+		}
+
+		for(uint i=start ; i<n ; ++i)
+			res.MulInt(i);
+
+	return res;
+	}
+	
+
+	/*!
+		an auxiliary function used to calculate the Gamma() function
+
+		we use this function when n is integer and a small value (from 0 to TTMATH_GAMMA_BOUNDARY]
+	*/
+	template<class ValueType>
+	ValueType GammaPlusLowInteger(const ValueType & n, CGamma<ValueType> & cgamma)
