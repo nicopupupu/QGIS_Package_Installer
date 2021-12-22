@@ -2129,3 +2129,345 @@ public:
 		uint c = exponent_temp.Add(man*TTMATH_BITS_PER_UINT-1);
 
 	    LnSurrounding1(m);
+
+		Big<exp,man> ln2;
+		ln2.SetLn2();
+		c += exponent_temp.Mul(ln2);
+		c += Add(exponent_temp);
+
+	return CheckCarry(c);
+	}
+
+
+	/*!
+		Logarithm from 'x' with a 'base'
+
+		we're using the formula:
+			Log(x) with 'base' = ln(x) / ln(base)
+
+		return values:
+			0 - ok
+			1 - overflow
+			2 - incorrect argument (x<=0)
+			3 - incorrect base (a<=0 lub a=1)
+	*/
+	uint Log(const Big<exp,man> & x, const Big<exp,man> & base)
+	{
+		if( x.IsNan() || base.IsNan() )
+			return CheckCarry(1);
+
+		if( x.IsSign() || x.IsZero() )
+		{
+			SetNan();
+			return 2;
+		}
+
+		Big<exp,man> denominator;;
+		denominator.SetOne();
+
+		if( base.IsSign() || base.IsZero() || base==denominator )
+		{
+			SetNan();
+			return 3;
+		}
+		
+		if( x == denominator ) // (this is: if x == 1)
+		{
+			// log(1) is 0
+			SetZero();
+			return 0;
+		}
+
+		// another error values we've tested at the beginning
+		// there can only be a carry
+		uint c = Ln(x);
+
+		c += denominator.Ln(base);
+		c += Div(denominator);
+
+	return CheckCarry(c);
+	}
+
+
+
+
+	/*!
+	*
+	*	converting methods
+	*
+	*/
+
+
+	/*!
+		converting from another type of a Big object
+	*/
+	template<uint another_exp, uint another_man>
+	uint FromBig(const Big<another_exp, another_man> & another)
+	{
+		info = another.info;
+
+		if( IsNan() )
+			return 1;
+
+		if( exponent.FromInt(another.exponent) )
+		{
+			SetNan();
+			return 1;
+		}
+
+		uint man_len_min = (man < another_man)? man : another_man;
+		uint i;
+		uint c = 0;
+
+		for( i = 0 ; i<man_len_min ; ++i )
+			mantissa.table[man-1-i] = another.mantissa.table[another_man-1-i];
+	
+		for( ; i<man ; ++i )
+			mantissa.table[man-1-i] = 0;
+
+
+		// MS Visual Express 2005 reports a warning (in the lines with 'uint man_diff = ...'):
+		// warning C4307: '*' : integral constant overflow
+		// but we're using 'if( man > another_man )' and 'if( man < another_man )' and there'll be no such situation here
+		#ifdef _MSC_VER
+		#pragma warning( disable: 4307 )
+		#endif
+
+		if( man > another_man )
+		{
+			uint man_diff = (man - another_man) * TTMATH_BITS_PER_UINT;
+			c += exponent.SubInt(man_diff, 0);
+		}
+		else
+		if( man < another_man )
+		{
+			uint man_diff = (another_man - man) * TTMATH_BITS_PER_UINT;
+			c += exponent.AddInt(man_diff, 0);
+		}
+		
+		#ifdef _MSC_VER
+		#pragma warning( default: 4307 )
+		#endif
+
+		// mantissa doesn't have to be standardized (either the highest bit is set or all bits are equal zero)
+		CorrectZero();
+
+	return CheckCarry(c);
+	}
+
+
+private:
+
+	/*!
+		an auxiliary method for converting 'this' into 'result'
+		if the value is too big this method returns a carry (1)
+	*/
+	uint ToUIntOrInt(uint & result) const
+	{
+		result = 0;
+
+		if( IsZero() )
+			return 0;
+
+		sint maxbit = -sint(man*TTMATH_BITS_PER_UINT);
+
+		if( exponent > maxbit + sint(TTMATH_BITS_PER_UINT) )
+			// if exponent > (maxbit + sint(TTMATH_BITS_PER_UINT)) the value can't be passed
+			// into the 'sint' type (it's too big)
+			return 1;
+
+		if( exponent <= maxbit )
+			// our value is from the range of (-1,1) and we return zero
+			return 0;
+
+		// exponent is from a range of (maxbit, maxbit + sint(TTMATH_BITS_PER_UINT) >
+		// and [maxbit + sint(TTMATH_BITS_PER_UINT] <= 0
+		sint how_many_bits = exponent.ToInt();
+
+		// how_many_bits is negative, we'll make it positive
+		how_many_bits = -how_many_bits;
+	
+		result = (mantissa.table[man-1] >> (how_many_bits % TTMATH_BITS_PER_UINT));
+
+	return 0;
+	}
+
+
+public:
+
+	/*!
+		this method converts 'this' into uint
+	*/
+	uint ToUInt() const
+	{
+	uint result;
+
+		ToUInt(result);
+
+	return result;
+	}
+
+
+	/*!
+		this method converts 'this' into 'result'
+
+		if the value is too big this method returns a carry (1)
+	*/
+	uint ToUInt(uint & result) const
+	{
+		if( ToUIntOrInt(result) )
+			return 1;
+
+		if( IsSign() )
+			return 1;
+
+	return 0;
+	}
+
+
+	/*!
+		this method converts 'this' into sint
+	*/
+	sint ToInt() const
+	{
+	sint result;
+
+		ToInt(result);
+
+	return result;
+	}
+
+
+	/*!
+		this method converts 'this' into 'result'
+
+		if the value is too big this method returns a carry (1)
+	*/
+	uint ToInt(uint & result) const
+	{
+		return ToUInt(result);
+	}
+
+
+	/*!
+		this method converts 'this' into 'result'
+
+		if the value is too big this method returns a carry (1)
+	*/
+	uint ToInt(sint & result) const
+	{
+	uint result_uint;
+
+		uint c = ToUIntOrInt(result_uint);
+		result = sint(result_uint);
+
+		if( c )
+			return 1;
+
+		uint mask = 0;
+
+		if( IsSign() )
+		{
+			mask = TTMATH_UINT_MAX_VALUE;
+			result = -result;
+		}
+
+	return ((result & TTMATH_UINT_HIGHEST_BIT) == (mask & TTMATH_UINT_HIGHEST_BIT)) ? 0 : 1;
+	}
+
+
+private:
+
+	/*!
+		an auxiliary method for converting 'this' into 'result'
+
+		if the value is too big this method returns a carry (1)
+	*/
+	template<uint int_size>
+	uint ToUIntOrInt(UInt<int_size> & result) const
+	{
+		result.SetZero();
+
+		if( IsZero() )
+			return 0;
+		
+		sint maxbit = -sint(man*TTMATH_BITS_PER_UINT);
+
+		if( exponent > maxbit + sint(int_size*TTMATH_BITS_PER_UINT) )
+			// if exponent > (maxbit + sint(int_size*TTMATH_BITS_PER_UINT)) the value can't be passed
+			// into the 'UInt<int_size>' type (it's too big)
+			return 1;
+
+		if( exponent <= maxbit )
+			// our value is from range (-1,1) and we return zero
+			return 0;
+
+		sint how_many_bits = exponent.ToInt();
+
+		if( how_many_bits < 0 )
+		{
+			how_many_bits = -how_many_bits;
+			uint index    = how_many_bits / TTMATH_BITS_PER_UINT;
+
+			UInt<man> mantissa_temp(mantissa);
+			mantissa_temp.Rcr( how_many_bits % TTMATH_BITS_PER_UINT, 0 );
+
+			for(uint i=index, a=0 ; i<man ; ++i,++a)
+				result.table[a] = mantissa_temp.table[i];
+		}
+		else
+		{
+			uint index = how_many_bits / TTMATH_BITS_PER_UINT;
+
+			if( index + (man-1) < int_size )
+			{
+				// above 'if' is always true
+				// this is only to get rid of a warning "warning: array subscript is above array bounds"
+				// (from gcc)
+				// we checked the condition there: "if( exponent > maxbit + sint(int_size*TTMATH_BITS_PER_UINT) )"
+				// but gcc doesn't understand our types - exponent is Int<>
+
+				for(uint i=0 ; i<man ; ++i)
+					result.table[index+i] = mantissa.table[i];
+			}
+
+			result.Rcl( how_many_bits % TTMATH_BITS_PER_UINT, 0 );
+		}
+
+	return 0;
+	}
+
+
+public:
+
+	/*!
+		this method converts 'this' into 'result'
+
+		if the value is too big this method returns a carry (1)
+	*/
+	template<uint int_size>
+	uint ToUInt(UInt<int_size> & result) const
+	{
+		uint c = ToUIntOrInt(result);
+
+		if( c )
+			return 1;
+
+		if( IsSign() )
+			return 1;
+
+	return 0;
+	}
+
+
+	/*!
+		this method converts 'this' into 'result'
+
+		if the value is too big this method returns a carry (1)
+	*/
+	template<uint int_size>
+	uint ToInt(UInt<int_size> & result) const
+	{
+		return ToUInt(result);
+	}
+
