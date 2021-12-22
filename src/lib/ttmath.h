@@ -2532,3 +2532,323 @@ namespace ttmath
 	*/
 	template<class ValueType>
 	ValueType GammaPlusLowInteger(const ValueType & n, CGamma<ValueType> & cgamma)
+	{
+	sint n_;
+
+		n.ToInt(n_);
+
+	return GammaPlusLowIntegerInt(n_, cgamma);
+	}
+
+
+	/*!
+		an auxiliary function used to calculate the Gamma() function
+
+		we use this function when n is a small value (from 0 to TTMATH_GAMMA_BOUNDARY]
+		we use a recurrence formula:
+		   gamma(z+1) = z * gamma(z)
+		   then: gamma(z) = gamma(z+1) / z
+
+		   e.g.
+		   gamma(3.89) = gamma(2001.89) / ( 3.89 * 4.89 * 5.89 * ... * 1999.89 * 2000.89 )
+	*/
+	template<class ValueType>
+	ValueType GammaPlusLow(ValueType n, CGamma<ValueType> & cgamma, ErrorCode & err, const volatile StopCalculating * stop)
+	{
+	ValueType one, denominator, temp, boundary;
+
+		if( n.IsInteger() )
+			return GammaPlusLowInteger(n, cgamma);
+
+		one.SetOne();
+		denominator = n;
+		boundary    = TTMATH_GAMMA_BOUNDARY;
+
+		while( n < boundary )
+		{
+			n.Add(one);
+			denominator.Mul(n);
+		}
+
+		n.Add(one);
+
+		// now n is sufficient big
+		temp = GammaPlusHigh(n, cgamma, err, stop);
+		temp.Div(denominator);
+
+	return temp;
+	}
+
+
+	/*!
+		an auxiliary function used to calculate the Gamma() function
+	*/
+	template<class ValueType>
+	ValueType GammaPlus(const ValueType & n, CGamma<ValueType> & cgamma, ErrorCode & err, const volatile StopCalculating * stop)
+	{
+		if( n > TTMATH_GAMMA_BOUNDARY )
+			return GammaPlusHigh(n, cgamma, err, stop);
+
+	return GammaPlusLow(n, cgamma, err, stop);
+	}
+
+
+	/*!
+		an auxiliary function used to calculate the Gamma() function
+
+		this function is used when n is negative
+		we use the reflection formula:
+		   gamma(1-z) * gamma(z) = pi / sin(pi*z)
+		   then: gamma(z) = pi / (sin(pi*z) * gamma(1-z))
+
+	*/
+	template<class ValueType>
+	ValueType GammaMinus(const ValueType & n, CGamma<ValueType> & cgamma, ErrorCode & err, const volatile StopCalculating * stop)
+	{
+	ValueType pi, denominator, temp, temp2;
+
+		if( n.IsInteger() )
+		{
+			// gamma function is not defined when n is negative and integer
+			err = err_improper_argument;
+			return temp; // NaN
+		}
+
+		pi.SetPi();
+
+		temp = pi;
+		temp.Mul(n);
+		temp2 = Sin(temp);
+		// temp2 = sin(pi * n)
+
+		temp.SetOne();
+		temp.Sub(n);
+		temp = GammaPlus(temp, cgamma, err, stop);
+		// temp = gamma(1 - n)
+
+		temp.Mul(temp2);
+		pi.Div(temp);
+
+	return pi;
+	}
+
+	} // namespace auxiliaryfunctions
+
+
+
+	/*!
+		this function calculates the Gamma function
+
+		it's multithread safe, you should create a CGamma<> object and use it whenever you call the Gamma()
+		e.g.
+			typedef Big<1,2> MyBig;
+			MyBig x=234, y=345.53;
+			CGamma<MyBig> cgamma;
+			std::cout << Gamma(x, cgamma) << std::endl;
+			std::cout << Gamma(y, cgamma) << std::endl;
+		in the CGamma<> object the function stores some coefficients (factorials, Bernoulli numbers),
+		and they will be reused in next calls to the function
+
+		each thread should have its own CGamma<> object, and you can use these objects with Factorial() function too
+	*/
+	template<class ValueType>
+	ValueType Gamma(const ValueType & n, CGamma<ValueType> & cgamma, ErrorCode * err = 0,
+					const volatile StopCalculating * stop = 0)
+	{
+	using namespace auxiliaryfunctions;
+
+	ValueType result;
+	ErrorCode err_tmp;
+
+		if( n.IsNan() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+		return n;
+		}
+
+		if( cgamma.history.Get(n, result, err_tmp) )
+		{
+			if( err )
+				*err = err_tmp;
+
+			return result;
+		}
+
+		err_tmp = err_ok;
+
+		if( n.IsSign() )
+		{
+			result = GammaMinus(n, cgamma, err_tmp, stop);
+		}
+		else
+		if( n.IsZero() )
+		{
+			err_tmp = err_improper_argument;
+			result.SetNan();
+		}
+		else
+		{
+			result = GammaPlus(n, cgamma, err_tmp, stop);
+		}
+
+		if( result.IsNan() && err_tmp==err_ok )
+			err_tmp = err_overflow;
+
+		if( err )
+			*err = err_tmp;
+
+		if( stop && !stop->WasStopSignal() )
+			cgamma.history.Add(n, result, err_tmp);
+
+	return result;
+	}
+
+
+	/*!
+		this function calculates the Gamma function
+
+		note: this function should be used only in a single-thread environment
+	*/
+	template<class ValueType>
+	ValueType Gamma(const ValueType & n, ErrorCode * err = 0)
+	{
+	// warning: this static object is not thread safe
+	static CGamma<ValueType> cgamma;
+
+	return Gamma(n, cgamma, err);
+	}
+
+
+
+	namespace auxiliaryfunctions
+	{
+
+	/*!
+		an auxiliary function for calculating the factorial function
+
+		we use the formula:
+		   x! = gamma(x+1)
+	*/
+	template<class ValueType>
+	ValueType Factorial2(ValueType x,
+						 CGamma<ValueType> * cgamma = 0,
+						 ErrorCode * err = 0,
+						 const volatile StopCalculating * stop = 0)
+	{
+	ValueType result, one;
+
+		if( x.IsNan() || x.IsSign() || !x.IsInteger() )
+		{
+			if( err )
+				*err = err_improper_argument;
+
+			x.SetNan();
+
+		return x;
+		}
+
+		one.SetOne();
+		x.Add(one);
+
+		if( cgamma )
+			return Gamma(x, *cgamma, err, stop);
+
+	return Gamma(x, err);
+	}
+	
+	} // namespace auxiliaryfunctions
+
+
+
+	/*!
+		the factorial from given 'x'
+		e.g.
+		Factorial(4) = 4! = 1*2*3*4
+
+		it's multithread safe, you should create a CGamma<> object and use it whenever you call the Factorial()
+		e.g.
+			typedef Big<1,2> MyBig;
+			MyBig x=234, y=54345;
+			CGamma<MyBig> cgamma;
+			std::cout << Factorial(x, cgamma) << std::endl;
+			std::cout << Factorial(y, cgamma) << std::endl;
+		in the CGamma<> object the function stores some coefficients (factorials, Bernoulli numbers),
+		and they will be reused in next calls to the function
+
+		each thread should have its own CGamma<> object, and you can use these objects with Gamma() function too
+	*/
+	template<class ValueType>
+	ValueType Factorial(const ValueType & x, CGamma<ValueType> & cgamma, ErrorCode * err = 0,
+						const volatile StopCalculating * stop = 0)
+	{
+		return auxiliaryfunctions::Factorial2(x, &cgamma, err, stop);
+	}
+
+
+	/*!
+		the factorial from given 'x'
+		e.g.
+		Factorial(4) = 4! = 1*2*3*4
+
+		note: this function should be used only in a single-thread environment
+	*/
+	template<class ValueType>
+	ValueType Factorial(const ValueType & x, ErrorCode * err = 0)
+	{
+		return auxiliaryfunctions::Factorial2(x, (CGamma<ValueType>*)0, err, 0);
+	}
+
+
+	/*!
+		this method prepares some coefficients: factorials and Bernoulli numbers
+		stored in 'fact' and 'bern' objects
+
+		we're defining the method here because we're using Gamma() function which
+		is not available in ttmathobjects.h
+
+		read the doc info in ttmathobjects.h file where CGamma<> struct is declared
+	*/
+	template<class ValueType>
+	void CGamma<ValueType>::InitAll()
+	{
+		ValueType x = TTMATH_GAMMA_BOUNDARY + 1;
+		
+		// history.Remove(x) removes only one object
+		// we must be sure that there are not others objects with the key 'x'
+		while( history.Remove(x) )
+		{
+		}
+
+		// the simplest way to initialize is to call the Gamma function with (TTMATH_GAMMA_BOUNDARY + 1)
+		// when x is larger then fewer coefficients we need
+		Gamma(x, *this);
+	}
+
+
+
+} // namespace
+
+
+/*!
+	this is for convenience for the user
+	he can only use '#include <ttmath/ttmath.h>'
+*/
+#include "ttmathparser.h"
+
+// Dec is not finished yet
+//#include "ttmathdec.h"
+
+
+
+#ifdef _MSC_VER
+//warning C4127: conditional expression is constant
+#pragma warning( default: 4127 )
+//warning C4702: unreachable code
+#pragma warning( default: 4702 )
+//warning C4800: forcing value to bool 'true' or 'false' (performance warning)
+#pragma warning( default: 4800 )
+#endif
+
+#endif
