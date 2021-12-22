@@ -387,3 +387,364 @@ private:
 
 public:
 
+
+	/*!
+		this method sets the value of pi
+	*/
+	void SetPi()
+	{
+		SetMantissaPi();
+		info = 0;
+		exponent = -sint(man)*sint(TTMATH_BITS_PER_UINT) + 2;
+	}
+
+
+	/*!
+		this method sets the value of 0.5 * pi
+	*/
+	void Set05Pi()
+	{
+		SetMantissaPi();
+		info = 0;
+		exponent = -sint(man)*sint(TTMATH_BITS_PER_UINT) + 1;
+	}
+
+
+	/*!
+		this method sets the value of 2 * pi
+	*/
+	void Set2Pi()
+	{
+		SetMantissaPi();
+		info = 0;
+		exponent = -sint(man)*sint(TTMATH_BITS_PER_UINT) + 3;
+	}
+
+
+	/*!
+		this method sets the value of e
+		(the base of the natural logarithm)
+	*/
+	void SetE()
+	{
+	static const unsigned int temp_table[] = {
+		0xadf85458, 0xa2bb4a9a, 0xafdc5620, 0x273d3cf1, 0xd8b9c583, 0xce2d3695, 0xa9e13641, 0x146433fb, 
+		0xcc939dce, 0x249b3ef9, 0x7d2fe363, 0x630c75d8, 0xf681b202, 0xaec4617a, 0xd3df1ed5, 0xd5fd6561, 
+		0x2433f51f, 0x5f066ed0, 0x85636555, 0x3ded1af3, 0xb557135e, 0x7f57c935, 0x984f0c70, 0xe0e68b77, 
+		0xe2a689da, 0xf3efe872, 0x1df158a1, 0x36ade735, 0x30acca4f, 0x483a797a, 0xbc0ab182, 0xb324fb61, 
+		0xd108a94b, 0xb2c8e3fb, 0xb96adab7, 0x60d7f468, 0x1d4f42a3, 0xde394df4, 0xae56ede7, 0x6372bb19, 
+		0x0b07a7c8, 0xee0a6d70, 0x9e02fce1, 0xcdf7e2ec, 0xc03404cd, 0x28342f61, 0x9172fe9c, 0xe98583ff, 
+		0x8e4f1232, 0xeef28183, 0xc3fe3b1b, 0x4c6fad73, 0x3bb5fcbc, 0x2ec22005, 0xc58ef183, 0x7d1683b2, 
+		0xc6f34a26, 0xc1b2effa, 0x886b4238, 0x611fcfdc, 0xde355b3b, 0x6519035b, 0xbc34f4de, 0xf99c0238, 
+		0x61b46fc9, 0xd6e6c907, 0x7ad91d26, 0x91f7f7ee, 0x598cb0fa, 0xc186d91c, 0xaefe1309, 0x85139270, 
+		0xb4130c93, 0xbc437944, 0xf4fd4452, 0xe2d74dd3, 0x64f2e21e, 0x71f54bff, 0x5cae82ab, 0x9c9df69e, 
+		0xe86d2bc5, 0x22363a0d, 0xabc52197, 0x9b0deada, 0x1dbf9a42, 0xd5c4484e, 0x0abcd06b, 0xfa53ddef, 
+		0x3c1b20ee, 0x3fd59d7c, 0x25e41d2b, 0x669e1ef1, 0x6e6f52c3, 0x164df4fb, 0x7930e9e4, 0xe58857b6, 
+		0xac7d5f42, 0xd69f6d18, 0x7763cf1d, 0x55034004, 0x87f55ba5, 0x7e31cc7a, 0x7135c886, 0xefb4318a, 
+		0xed6a1e01, 0x2d9e6832, 0xa907600a, 0x918130c4, 0x6dc778f9, 0x71ad0038, 0x092999a3, 0x33cb8b7a, 
+		0x1a1db93d, 0x7140003c, 0x2a4ecea9, 0xf98d0acc, 0x0a8291cd, 0xcec97dcf, 0x8ec9b55a, 0x7f88a46b, 
+		0x4db5a851, 0xf44182e1, 0xc68a007e, 0x5e0dd902, 0x0bfd64b6, 0x45036c7a, 0x4e677d2c, 0x38532a3a, 
+		0x23ba4442, 0xcaf53ea6, 0x3bb45432, 0x9b7624c8, 0x917bdd64, 0xb1c0fd4c, 0xb38e8c33, 0x4c701c3a, 
+		0xcdad0657, 0xfccfec71, 0x9b1f5c3e, 0x4e46041f, 0x388147fb, 0x4cfdb477, 0xa52471f7, 0xa9a96910, 
+		0xb855322e, 0xdb6340d8, 0xa00ef092, 0x350511e3, 0x0abec1ff, 0xf9e3a26e, 0x7fb29f8c, 0x183023c3, 
+		0x587e38da, 0x0077d9b4, 0x763e4e4b, 0x94b2bbc1, 0x94c6651e, 0x77caf992, 0xeeaac023, 0x2a281bf6, 
+		0xb3a739c1, 0x22611682, 0x0ae8db58, 0x47a67cbe, 0xf9c9091b, 0x462d538c, 0xd72b0374, 0x6ae77f5e, 
+		0x62292c31, 0x1562a846, 0x505dc82d, 0xb854338a, 0xe49f5235, 0xc95b9117, 0x8ccf2dd5, 0xcacef403, 
+		0xec9d1810, 0xc6272b04, 0x5b3b71f9, 0xdc6b80d6, 0x3fdd4a8e, 0x9adb1e69, 0x62a69526, 0xd43161c1, 
+		0xa41d570d, 0x7938dad4, 0xa40e329c, 0xcff46aaa, 0x36ad004c, 0xf600c838, 0x1e425a31, 0xd951ae64, 
+		0xfdb23fce, 0xc9509d43, 0x687feb69, 0xedd1cc5e, 0x0b8cc3bd, 0xf64b10ef, 0x86b63142, 0xa3ab8829, 
+		0x555b2f74, 0x7c932665, 0xcb2c0f1c, 0xc01bd702, 0x29388839, 0xd2af05e4, 0x54504ac7, 0x8b758282, 
+		0x2846c0ba, 0x35c35f5c, 0x59160cc0, 0x46fd8251, 0x541fc68c, 0x9c86b022, 0xbb709987, 0x6a460e74, 
+		0x51a8a931, 0x09703fee, 0x1c217e6c, 0x3826e52c, 0x51aa691e, 0x0e423cfc, 0x99e9e316, 0x50c1217b, 
+		0x624816cd, 0xad9a95f9, 0xd5b80194, 0x88d9c0a0, 0xa1fe3075, 0xa577e231, 0x83f81d4a, 0x3f2fa457, 
+		0x1efc8ce0, 0xba8a4fe8, 0xb6855dfe, 0x72b0a66e, 0xded2fbab, 0xfbe58a30, 0xfafabe1c, 0x5d71a87e, 
+		0x2f741ef8, 0xc1fe86fe, 0xa6bbfde5, 0x30677f0d, 0x97d11d49, 0xf7a8443d, 0x0822e506, 0xa9f4614e, 
+		0x011e2a94, 0x838ff88c, 0xd68c8bb7, 0xc51eef6d, 0x49ea8ab4, 0xf2c3df5b, 0xb4e0735a, 0xb0d68749
+		// 0x2fe26dd4, ...
+		// 256 32bit words for the mantissa -- about 2464 valid decimal digits
+		};
+
+		// above value was calculated using Big<1,400> type on a 32bit platform
+		// and then the first 256 words were taken,
+		// the calculating was made by using ExpSurrounding0(1) method
+		// which took 1420 iterations
+		// (the result was compared with e taken from http://antwrp.gsfc.nasa.gov/htmltest/gifcity/e.2mil)
+		// (TTMATH_BUILTIN_VARIABLES_SIZE on 32bit platform should have the value 256,
+		// and on 64bit platform value 128 (256/2=128))
+
+		mantissa.SetFromTable(temp_table, sizeof(temp_table) / sizeof(int));
+		exponent = -sint(man)*sint(TTMATH_BITS_PER_UINT) + 2;
+		info = 0;
+	}
+
+
+	/*!
+		this method sets the value of ln(2)
+		the natural logarithm from 2
+	*/
+	void SetLn2()
+	{
+	static const unsigned int temp_table[] = {
+		0xb17217f7, 0xd1cf79ab, 0xc9e3b398, 0x03f2f6af, 0x40f34326, 0x7298b62d, 0x8a0d175b, 0x8baafa2b, 
+		0xe7b87620, 0x6debac98, 0x559552fb, 0x4afa1b10, 0xed2eae35, 0xc1382144, 0x27573b29, 0x1169b825, 
+		0x3e96ca16, 0x224ae8c5, 0x1acbda11, 0x317c387e, 0xb9ea9bc3, 0xb136603b, 0x256fa0ec, 0x7657f74b, 
+		0x72ce87b1, 0x9d6548ca, 0xf5dfa6bd, 0x38303248, 0x655fa187, 0x2f20e3a2, 0xda2d97c5, 0x0f3fd5c6, 
+		0x07f4ca11, 0xfb5bfb90, 0x610d30f8, 0x8fe551a2, 0xee569d6d, 0xfc1efa15, 0x7d2e23de, 0x1400b396, 
+		0x17460775, 0xdb8990e5, 0xc943e732, 0xb479cd33, 0xcccc4e65, 0x9393514c, 0x4c1a1e0b, 0xd1d6095d, 
+		0x25669b33, 0x3564a337, 0x6a9c7f8a, 0x5e148e82, 0x074db601, 0x5cfe7aa3, 0x0c480a54, 0x17350d2c, 
+		0x955d5179, 0xb1e17b9d, 0xae313cdb, 0x6c606cb1, 0x078f735d, 0x1b2db31b, 0x5f50b518, 0x5064c18b, 
+		0x4d162db3, 0xb365853d, 0x7598a195, 0x1ae273ee, 0x5570b6c6, 0x8f969834, 0x96d4e6d3, 0x30af889b, 
+		0x44a02554, 0x731cdc8e, 0xa17293d1, 0x228a4ef9, 0x8d6f5177, 0xfbcf0755, 0x268a5c1f, 0x9538b982, 
+		0x61affd44, 0x6b1ca3cf, 0x5e9222b8, 0x8c66d3c5, 0x422183ed, 0xc9942109, 0x0bbb16fa, 0xf3d949f2, 
+		0x36e02b20, 0xcee886b9, 0x05c128d5, 0x3d0bd2f9, 0x62136319, 0x6af50302, 0x0060e499, 0x08391a0c, 
+		0x57339ba2, 0xbeba7d05, 0x2ac5b61c, 0xc4e9207c, 0xef2f0ce2, 0xd7373958, 0xd7622658, 0x901e646a, 
+		0x95184460, 0xdc4e7487, 0x156e0c29, 0x2413d5e3, 0x61c1696d, 0xd24aaebd, 0x473826fd, 0xa0c238b9, 
+		0x0ab111bb, 0xbd67c724, 0x972cd18b, 0xfbbd9d42, 0x6c472096, 0xe76115c0, 0x5f6f7ceb, 0xac9f45ae, 
+		0xcecb72f1, 0x9c38339d, 0x8f682625, 0x0dea891e, 0xf07afff3, 0xa892374e, 0x175eb4af, 0xc8daadd8, 
+		0x85db6ab0, 0x3a49bd0d, 0xc0b1b31d, 0x8a0e23fa, 0xc5e5767d, 0xf95884e0, 0x6425a415, 0x26fac51c, 
+		0x3ea8449f, 0xe8f70edd, 0x062b1a63, 0xa6c4c60c, 0x52ab3316, 0x1e238438, 0x897a39ce, 0x78b63c9f, 
+		0x364f5b8a, 0xef22ec2f, 0xee6e0850, 0xeca42d06, 0xfb0c75df, 0x5497e00c, 0x554b03d7, 0xd2874a00, 
+		0x0ca8f58d, 0x94f0341c, 0xbe2ec921, 0x56c9f949, 0xdb4a9316, 0xf281501e, 0x53daec3f, 0x64f1b783, 
+		0x154c6032, 0x0e2ff793, 0x33ce3573, 0xfacc5fdc, 0xf1178590, 0x3155bbd9, 0x0f023b22, 0x0224fcd8, 
+		0x471bf4f4, 0x45f0a88a, 0x14f0cd97, 0x6ea354bb, 0x20cdb5cc, 0xb3db2392, 0x88d58655, 0x4e2a0e8a, 
+		0x6fe51a8c, 0xfaa72ef2, 0xad8a43dc, 0x4212b210, 0xb779dfe4, 0x9d7307cc, 0x846532e4, 0xb9694eda, 
+		0xd162af05, 0x3b1751f3, 0xa3d091f6, 0x56658154, 0x12b5e8c2, 0x02461069, 0xac14b958, 0x784934b8, 
+		0xd6cce1da, 0xa5053701, 0x1aa4fb42, 0xb9a3def4, 0x1bda1f85, 0xef6fdbf2, 0xf2d89d2a, 0x4b183527, 
+		0x8fd94057, 0x89f45681, 0x2b552879, 0xa6168695, 0xc12963b0, 0xff01eaab, 0x73e5b5c1, 0x585318e7, 
+		0x624f14a5, 0x1a4a026b, 0x68082920, 0x57fd99b6, 0x6dc085a9, 0x8ac8d8ca, 0xf9eeeea9, 0x8a2400ca, 
+		0xc95f260f, 0xd10036f9, 0xf91096ac, 0x3195220a, 0x1a356b2a, 0x73b7eaad, 0xaf6d6058, 0x71ef7afb, 
+		0x80bc4234, 0x33562e94, 0xb12dfab4, 0x14451579, 0xdf59eae0, 0x51707062, 0x4012a829, 0x62c59cab, 
+		0x347f8304, 0xd889659e, 0x5a9139db, 0x14efcc30, 0x852be3e8, 0xfc99f14d, 0x1d822dd6, 0xe2f76797, 
+		0xe30219c8, 0xaa9ce884, 0x8a886eb3, 0xc87b7295, 0x988012e8, 0x314186ed, 0xbaf86856, 0xccd3c3b6, 
+		0xee94e62f, 0x110a6783, 0xd2aae89c, 0xcc3b76fc, 0x435a0ce1, 0x34c2838f, 0xd571ec6c, 0x1366a993 // last one was: 0x1366a992
+		//0xcbb9ac40, ...
+		// (the last word 0x1366a992 was rounded up because the next one is 0xcbb9ac40 -- first bit is one 0xc..)
+		// 256 32bit words for the mantissa -- about 2464 valid decimal digits
+		};	
+
+		// above value was calculated using Big<1,400> type on a 32bit platform
+		// and then the first 256 words were taken,
+		// the calculating was made by using LnSurrounding1(2) method
+		// which took 4035 iterations
+		// (the result was compared with ln(2) taken from http://ja0hxv.calico.jp/pai/estart.html)
+		// (TTMATH_BUILTIN_VARIABLES_SIZE on 32bit platform should have the value 256,
+		// and on 64bit platform value 128 (256/2=128))
+
+		mantissa.SetFromTable(temp_table, sizeof(temp_table) / sizeof(int));
+		exponent = -sint(man)*sint(TTMATH_BITS_PER_UINT);
+		info = 0;
+	}
+
+
+	/*!
+		this method sets the value of ln(10)
+		the natural logarithm from 10
+
+		I introduced this constant especially to make the conversion ToString()
+		being faster. In fact the method ToString() is keeping values of logarithms
+		it has calculated but it must calculate the logarithm at least once.
+		If a program, which uses this library, is running for a long time this
+		would be ok, but for programs which are running shorter, for example for
+		CGI applications which only once are printing values, this would be much
+		inconvenience. Then if we're printing with base (radix) 10 and the mantissa
+		of our value is smaller than or equal to TTMATH_BUILTIN_VARIABLES_SIZE
+		we don't calculate the logarithm but take it from this constant.
+	*/
+	void SetLn10()
+	{
+	static const unsigned int temp_table[] = {
+		0x935d8ddd, 0xaaa8ac16, 0xea56d62b, 0x82d30a28, 0xe28fecf9, 0xda5df90e, 0x83c61e82, 0x01f02d72, 
+		0x962f02d7, 0xb1a8105c, 0xcc70cbc0, 0x2c5f0d68, 0x2c622418, 0x410be2da, 0xfb8f7884, 0x02e516d6, 
+		0x782cf8a2, 0x8a8c911e, 0x765aa6c3, 0xb0d831fb, 0xef66ceb0, 0x4ab3c6fa, 0x5161bb49, 0xd219c7bb, 
+		0xca67b35b, 0x23605085, 0x8e93368d, 0x44789c4f, 0x5b08b057, 0xd5ede20f, 0x469ea58e, 0x9305e981, 
+		0xe2478fca, 0xad3aee98, 0x9cd5b42e, 0x6a271619, 0xa47ecb26, 0x978c5d4f, 0xdb1d28ea, 0x57d4fdc0, 
+		0xe40bf3cc, 0x1e14126a, 0x45765cde, 0x268339db, 0xf47fa96d, 0xeb271060, 0xaf88486e, 0xa9b7401e, 
+		0x3dfd3c51, 0x748e6d6e, 0x3848c8d2, 0x5faf1bca, 0xe88047f1, 0x7b0d9b50, 0xa949eaaa, 0xdf69e8a5, 
+		0xf77e3760, 0x4e943960, 0xe38a5700, 0xffde2db1, 0xad6bfbff, 0xd821ba0a, 0x4cb0466d, 0x61ba648e, 
+		0xef99c8e5, 0xf6974f36, 0x3982a78c, 0xa45ddfc8, 0x09426178, 0x19127a6e, 0x3b70fcda, 0x2d732d47, 
+		0xb5e4b1c8, 0xc0e5a10a, 0xaa6604a5, 0x324ec3dc, 0xbc64ea80, 0x6e198566, 0x1f1d366c, 0x20663834, 
+		0x4d5e843f, 0x20642b97, 0x0a62d18e, 0x478f7bd5, 0x8fcd0832, 0x4a7b32a6, 0xdef85a05, 0xeb56323a, 
+		0x421ef5e0, 0xb00410a0, 0xa0d9c260, 0x794a976f, 0xf6ff363d, 0xb00b6b33, 0xf42c58de, 0xf8a3c52d, 
+		0xed69b13d, 0xc1a03730, 0xb6524dc1, 0x8c167e86, 0x99d6d20e, 0xa2defd2b, 0xd006f8b4, 0xbe145a2a, 
+		0xdf3ccbb3, 0x189da49d, 0xbc1261c8, 0xb3e4daad, 0x6a36cecc, 0xb2d5ae5b, 0x89bf752f, 0xb5dfb353, 
+		0xff3065c4, 0x0cfceec8, 0x1be5a9a9, 0x67fddc57, 0xc4b83301, 0x006bf062, 0x4b40ed7a, 0x56c6cdcd, 
+		0xa2d6fe91, 0x388e9e3e, 0x48a93f5f, 0x5e3b6eb4, 0xb81c4a5b, 0x53d49ea6, 0x8e668aea, 0xba83c7f8, 
+		0xfb5f06c3, 0x58ac8f70, 0xfa9d8c59, 0x8c574502, 0xbaf54c96, 0xc84911f0, 0x0482d095, 0x1a0af022, 
+		0xabbab080, 0xec97efd3, 0x671e4e0e, 0x52f166b6, 0xcd5cd226, 0x0dc67795, 0x2e1e34a3, 0xf799677f, 
+		0x2c1d48f1, 0x2944b6c5, 0x2ba1307e, 0x704d67f9, 0x1c1035e4, 0x4e927c63, 0x03cf12bf, 0xe2cd2e31, 
+		0xf8ee4843, 0x344d51b0, 0xf37da42b, 0x9f0b0fd9, 0x134fb2d9, 0xf815e490, 0xd966283f, 0x23962766, 
+		0xeceab1e4, 0xf3b5fc86, 0x468127e2, 0xb606d10d, 0x3a45f4b6, 0xb776102d, 0x2fdbb420, 0x80c8fa84, 
+		0xd0ff9f45, 0xc58aef38, 0xdb2410fd, 0x1f1cebad, 0x733b2281, 0x52ca5f36, 0xddf29daa, 0x544334b8, 
+		0xdeeaf659, 0x4e462713, 0x1ed485b4, 0x6a0822e1, 0x28db471c, 0xa53938a8, 0x44c3bef7, 0xf35215c8, 
+		0xb382bc4e, 0x3e4c6f15, 0x6285f54c, 0x17ab408e, 0xccbf7f5e, 0xd16ab3f6, 0xced2846d, 0xf457e14f, 
+		0xbb45d9c5, 0x646ad497, 0xac697494, 0x145de32e, 0x93907128, 0xd263d521, 0x79efb424, 0xd64651d6, 
+		0xebc0c9f0, 0xbb583a44, 0xc6412c84, 0x85bb29a6, 0x4d31a2cd, 0x92954469, 0xa32b1abd, 0xf7f5202c, 
+		0xa4aa6c93, 0x2e9b53cf, 0x385ab136, 0x2741f356, 0x5de9c065, 0x6009901c, 0x88abbdd8, 0x74efcf73, 
+		0x3f761ad4, 0x35f3c083, 0xfd6b8ee0, 0x0bef11c7, 0xc552a89d, 0x58ce4a21, 0xd71e54f2, 0x4157f6c7, 
+		0xd4622316, 0xe98956d7, 0x450027de, 0xcbd398d8, 0x4b98b36a, 0x0724c25c, 0xdb237760, 0xe9324b68, 
+		0x7523e506, 0x8edad933, 0x92197f00, 0xb853a326, 0xb330c444, 0x65129296, 0x34bc0670, 0xe177806d, 
+		0xe338dac4, 0x5537492a, 0xe19add83, 0xcf45000f, 0x5b423bce, 0x6497d209, 0xe30e18a1, 0x3cbf0687, 
+		0x67973103, 0xd9485366, 0x81506bba, 0x2e93a9a4, 0x7dd59d3f, 0xf17cd746, 0x8c2075be, 0x552a4348 // last one was: 0x552a4347
+		// 0xb4a638ef, ...
+		//(the last word 0x552a4347 was rounded up because the next one is 0xb4a638ef -- first bit is one 0xb..)
+		// 256 32bit words for the mantissa -- about 2464 valid digits (decimal)
+		};	
+
+		// above value was calculated using Big<1,400> type on a 32bit platform
+		// and then the first 256 32bit words were taken,
+		// the calculating was made by using LnSurrounding1(10) method
+		// which took 22080 iterations
+		// (the result was compared with ln(10) taken from http://ja0hxv.calico.jp/pai/estart.html)
+		// (the formula used in LnSurrounding1(x) converges badly when
+	    // the x is greater than one but in fact we can use it, only the
+		// number of iterations will be greater)
+		// (TTMATH_BUILTIN_VARIABLES_SIZE on 32bit platform should have the value 256,
+		// and on 64bit platform value 128 (256/2=128))
+
+		mantissa.SetFromTable(temp_table, sizeof(temp_table) / sizeof(int));
+		exponent = -sint(man)*sint(TTMATH_BITS_PER_UINT) + 2;
+		info = 0;
+	}
+
+
+	/*!
+		this method sets the maximum value which can be held in this type
+	*/
+	void SetMax()
+	{
+		info = 0;
+		mantissa.SetMax();
+		exponent.SetMax();
+
+		// we don't have to use 'Standardizing()' because the last bit from
+		// the mantissa is set
+	}
+
+
+	/*!
+		this method sets the minimum value which can be held in this type
+	*/
+	void SetMin()
+	{
+		info = 0;
+
+		mantissa.SetMax();
+		exponent.SetMax();
+		SetSign();
+
+		// we don't have to use 'Standardizing()' because the last bit from
+		// the mantissa is set
+	}
+
+
+	/*!
+		testing whether there is a value zero or not
+	*/
+	bool IsZero() const
+	{
+		return IsInfoBit(TTMATH_BIG_ZERO);
+	}
+
+
+	/*!
+		this method returns true when there's the sign set
+		also we don't check the NaN flag
+	*/
+	bool IsSign() const
+	{
+		return IsInfoBit(TTMATH_BIG_SIGN);
+	}
+
+
+	/*!
+		this method returns true when there is not a valid number
+	*/
+	bool IsNan() const
+	{
+		return IsInfoBit(TTMATH_BIG_NAN);
+	}
+
+
+
+	/*!
+		this method clears the sign
+		(there'll be an absolute value)
+
+			e.g.
+			-1 -> 1
+			2  -> 2
+	*/
+	void Abs()
+	{
+		ClearInfoBit(TTMATH_BIG_SIGN);
+	}
+
+
+	/*!
+		this method remains the 'sign' of the value
+		e.g.  -2 = -1 
+		       0 = 0
+		      10 = 1
+	*/
+	void Sgn()
+	{
+		// we have to check the NaN flag, because the next SetOne() method would clear it
+		if( IsNan() )
+			return;
+
+		if( IsSign() )
+		{
+			SetOne();
+			SetSign();
+		}
+		else
+		if( IsZero() )
+			SetZero(); // !! is nedeed here?
+		else
+			SetOne();
+	}
+
+
+
+	/*!
+		this method sets the sign
+
+			e.g.
+			-1 -> -1
+			2  -> -2
+
+		we do not check whether there is a zero or not, if you're using this method
+		you must be sure that the value is (or will be afterwards) different from zero
+	*/
+	void SetSign()
+	{
+		SetInfoBit(TTMATH_BIG_SIGN);
+	}
+
+
+	/*!
+		this method changes the sign
+		when there is a value of zero then the sign is not changed
+
+			e.g.
+			-1 -> 1
+			2  -> -2
+	*/
+	void ChangeSign()
+	{
+		// we don't have to check the NaN flag here
+
+		if( IsZero() )
+			return;
+
+		if( IsSign() )
+			ClearInfoBit(TTMATH_BIG_SIGN);
+		else
+			SetInfoBit(TTMATH_BIG_SIGN);
+	}
+
+
+
+private:
+
+	/*!
