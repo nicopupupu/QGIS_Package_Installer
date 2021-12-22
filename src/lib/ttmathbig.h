@@ -2832,3 +2832,370 @@ private:
 		which may be represented as numbered from 0 to 31, left to right.
 		The first bit is the sign bit, S, the next eight bits are the exponent bits, 'E',
 		and the final 23 bits are the fraction 'F':
+
+		S EEEEEEEE FFFFFFFFFFFFFFFFFFFFFFF
+		0 1      8 9                    31
+
+		The value V represented by the word may be determined as follows:
+
+			* If E=255 and F is nonzero, then V=NaN ("Not a number")
+			* If E=255 and F is zero and S is 1, then V=-Infinity
+			* If E=255 and F is zero and S is 0, then V=Infinity
+			* If 0<E<255 then V=(-1)**S * 2 ** (E-127) * (1.F) where "1.F" is intended to represent
+			  the binary number created by prefixing F with an implicit leading 1 and a binary point.
+			* If E=0 and F is nonzero, then V=(-1)**S * 2 ** (-126) * (0.F) These are "unnormalized" values.
+			* If E=0 and F is zero and S is 1, then V=-0
+			* If E=0 and F is zero and S is 0, then V=0 		
+	*/
+	bool IsInf(float value) const
+	{
+		// need testing on a 64 bit machine
+
+		union 
+		{
+			float d;
+			uint u;
+		} temp;
+
+		temp.d = value;
+
+		if( ((temp.u >> 23) & 0xff) == 0xff )
+		{
+			if( (temp.u & 0x7FFFFF) == 0 )
+				return true; // +/- infinity
+		}
+
+	return false;
+	}
+
+
+public:
+
+	/*!
+		this method converts from this class into the 'float'
+
+		if the value is too big:
+			'result' will be +/-infinity (depending on the sign)
+		if the value is too small:
+			'result' will be 0
+	*/
+	float ToFloat() const
+	{
+	float result;
+
+		ToFloat(result);
+
+	return result;
+	}
+
+
+	/*!
+		this method converts from this class into the 'float'
+
+		if the value is too big:
+			'result' will be +/-infinity (depending on the sign)
+			and the method returns 1
+		if the value is too small:
+			'result' will be 0
+			and the method returns 1
+	*/
+	uint ToFloat(float & result) const
+	{
+	double result_double;
+
+		uint c = ToDouble(result_double);
+		result = float(result_double);
+		
+		if( result == -0.0f )
+			result = 0.0f;
+
+		if( c )
+			return 1;
+
+		// although the result_double can have a correct value
+		// but after converting to float there can be infinity
+
+		if( IsInf(result) )
+			return 1;
+
+		if( result == 0.0f && result_double != 0.0 )
+			// result_double was too small for float
+			return 1;
+
+	return 0;
+	}
+
+
+	/*!
+		this method converts from this class into the 'double'
+
+		if the value is too big:
+			'result' will be +/-infinity (depending on the sign)
+			and the method returns 1
+		if the value is too small:
+			'result' will be 0
+			and the method returns 1
+	*/
+	uint ToDouble(double & result) const
+	{
+		if( IsZero() )
+		{
+			result = 0.0;
+			return 0;
+		}
+
+		if( IsNan() )
+		{
+			result = ToDouble_SetDouble( false, 2047, 0, false, true);
+
+		return 0;
+		}
+
+		sint e_correction = sint(man*TTMATH_BITS_PER_UINT) - 1;
+
+		if( exponent >= 1024 - e_correction )
+		{
+			// +/- infinity
+			result = ToDouble_SetDouble( IsSign(), 2047, 0, true);
+
+		return 1;
+		}
+		else
+		if( exponent <= -1023 - 52 - e_correction )
+		{
+			// too small value - we assume that there'll be a zero
+			result = 0;
+
+			// and return a carry
+		return 1;
+		}
+		
+		sint e = exponent.ToInt() + e_correction;
+
+		if( e <= -1023 )
+		{
+			// -1023-52 < e <= -1023  (unnormalized value)
+			result = ToDouble_SetDouble( IsSign(), 0, -(e + 1023));
+		}
+		else
+		{
+			// -1023 < e < 1024
+			result = ToDouble_SetDouble( IsSign(), e + 1023, -1);
+		}
+
+	return 0;
+	}
+
+private:
+
+#ifdef TTMATH_PLATFORM32
+
+	// 32bit platforms
+	double ToDouble_SetDouble(bool is_sign, uint e, sint move, bool infinity = false, bool nan = false) const
+	{
+		union 
+		{
+			double d;
+			uint u[2]; // two 32bit words
+		} temp;
+
+		temp.u[0] = temp.u[1] = 0;
+
+		if( is_sign )
+			temp.u[1] |= 0x80000000u;
+
+		temp.u[1] |= (e << 20) & 0x7FF00000u;
+
+		if( nan )
+		{
+			temp.u[0] |= 1;
+			return temp.d;
+		}
+
+		if( infinity )
+			return temp.d;
+
+		UInt<2> m;
+		m.table[1] = mantissa.table[man-1];
+		m.table[0] = ( man > 1 ) ? mantissa.table[sint(man-2)] : 0;
+		// although man>1 we're using casting into sint
+		// to get rid from a warning which generates Microsoft Visual:
+		// warning C4307: '*' : integral constant overflow
+
+		m.Rcr( 12 + move );
+		m.table[1] &= 0xFFFFFu; // cutting the 20 bit (when 'move' was -1)
+
+		temp.u[1] |= m.table[1];
+		temp.u[0] |= m.table[0];
+
+	return temp.d;
+	}
+
+#else
+
+	// 64bit platforms
+	double ToDouble_SetDouble(bool is_sign, uint e, sint move, bool infinity = false, bool nan = false) const
+	{
+		union 
+		{
+			double d;
+			uint u; // 64bit word
+		} temp;
+
+		temp.u = 0;
+		
+		if( is_sign )
+			temp.u |= 0x8000000000000000ul;
+		                
+		temp.u |= (e << 52) & 0x7FF0000000000000ul;
+
+		if( nan )
+		{
+			temp.u |= 1;
+			return temp.d;
+		}
+
+		if( infinity )
+			return temp.d;
+
+		uint m = mantissa.table[man-1];
+
+		m >>= ( 12 + move );
+		m &= 0xFFFFFFFFFFFFFul; // cutting the 20 bit (when 'move' was -1)
+		temp.u |= m;
+
+	return temp.d;
+	}
+
+#endif
+
+
+public:
+
+
+	/*!
+		an operator= for converting 'sint' to this class
+	*/
+	Big<exp, man> & operator=(sint value)
+	{
+		FromInt(value);
+
+	return *this;
+	}
+
+
+	/*!
+		an operator= for converting 'uint' to this class
+	*/
+	Big<exp, man> & operator=(uint value)
+	{
+		FromUInt(value);
+
+	return *this;
+	}
+
+
+	/*!
+		an operator= for converting 'float' to this class
+	*/
+	Big<exp, man> & operator=(float value)
+	{
+		FromFloat(value);
+
+	return *this;
+	}
+
+
+	/*!
+		an operator= for converting 'double' to this class
+	*/
+	Big<exp, man> & operator=(double value)
+	{
+		FromDouble(value);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting 'sint' to this class
+	*/
+	Big(sint value)
+	{
+		FromInt(value);
+	}
+
+	/*!
+		a constructor for converting 'uint' to this class
+	*/
+	Big(uint value)
+	{	
+		FromUInt(value);
+	}
+	
+
+	/*!
+		a constructor for converting 'double' to this class
+	*/
+	Big(double value)
+	{
+		FromDouble(value);
+	}
+
+
+	/*!
+		a constructor for converting 'float' to this class
+	*/
+	Big(float value)
+	{
+		FromFloat(value);
+	}
+
+
+#ifdef TTMATH_PLATFORM32
+
+	/*!
+		this method converts 'this' into 'result' (64 bit unsigned integer)
+		if the value is too big this method returns a carry (1)
+	*/
+	uint ToUInt(ulint & result) const
+	{
+	UInt<2> temp; // 64 bits container
+
+		uint c = ToUInt(temp);
+		temp.ToUInt(result);
+
+	return c;
+	}
+
+
+	/*!
+		this method converts 'this' into 'result' (64 bit unsigned integer)
+		if the value is too big this method returns a carry (1)
+	*/
+	uint ToInt(ulint & result) const
+	{
+		return ToUInt(result);
+	}
+
+
+	/*!
+		this method converts 'this' into 'result' (64 bit unsigned integer)
+		if the value is too big this method returns a carry (1)
+	*/
+	uint ToInt(slint & result) const
+	{
+	Int<2> temp; // 64 bits container
+
+		uint c = ToInt(temp);
+		temp.ToInt(result);
+
+	return c;
+	}
+
+
+	/*!
+		a method for converting 'ulint' (64bit unsigned integer) to this class
+	*/
+	uint FromUInt(ulint value)
+	{
