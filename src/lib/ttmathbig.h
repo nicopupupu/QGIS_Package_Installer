@@ -1410,3 +1410,368 @@ private:
 		c += exponent.Sub(ss2.exponent);
 		
 		for(i=0 ; i<man ; ++i)
+			mantissa.table[i] = man1.table[i+man];
+
+		if( round && (man1.table[man-1] & TTMATH_UINT_HIGHEST_BIT) != 0 )
+		{
+			bool is_half = CheckGreaterOrEqualHalf(man1.table, man);
+			c += RoundHalfToEven(is_half);
+		}
+
+		if( IsSign() == ss2.IsSign() )
+			Abs();
+		else
+			SetSign(); // if there is a zero it will be corrected in Standardizing()
+
+		c += Standardizing();
+
+	return CheckCarry(c);
+	}
+
+
+public:
+
+	/*!
+		division this = this / ss2
+
+		return value:
+		0 - ok
+		1 - carry (in a division carry can be as well)
+		2 - improper argument (ss2 is zero)
+	*/
+	uint Div(const Big<exp, man> & ss2, bool round = true)
+	{
+		if( this == &ss2 )
+		{
+			Big<exp, man> copy_ss2(ss2);
+			return DivRef(copy_ss2, round);
+		}
+		else
+		{
+			return DivRef(ss2, round);
+		}
+	}
+
+
+private:
+
+	/*!
+		the remainder from a division
+	*/
+	uint ModRef(const Big<exp, man> & ss2)
+	{
+	TTMATH_REFERENCE_ASSERT( ss2 )
+
+	uint c = 0;
+
+		if( IsNan() || ss2.IsNan() )
+			return CheckCarry(1);
+
+		if( ss2.IsZero() )
+		{
+			SetNan();
+			return 2;
+		}
+
+		if( !SmallerWithoutSignThan(ss2) )
+		{
+			Big<exp, man> temp(*this);
+
+			c = temp.Div(ss2);
+			temp.SkipFraction();
+			c += temp.Mul(ss2);
+			c += Sub(temp);
+
+			if( !SmallerWithoutSignThan( ss2 ) )
+				c += 1;
+		}
+
+	return CheckCarry(c);
+	}
+
+
+public:
+
+	/*!
+		the remainder from a division
+
+		e.g.
+		 12.6 mod  3 =  0.6   because  12.6 = 3*4 + 0.6
+		-12.6 mod  3 = -0.6   bacause -12.6 = 3*(-4) + (-0.6)
+		 12.6 mod -3 =  0.6
+		-12.6 mod -3 = -0.6
+
+		it means:
+		in other words: this(old) = ss2 * q + this(new)
+
+		return value:
+		0 - ok
+		1 - carry
+		2 - improper argument (ss2 is zero)
+	*/
+	uint Mod(const Big<exp, man> & ss2)
+	{
+		if( this == &ss2 )
+		{
+			Big<exp, man> copy_ss2(ss2);
+			return ModRef(copy_ss2);
+		}
+		else
+		{
+			return ModRef(ss2);
+		}
+	}
+
+
+	/*!
+		this method returns: 'this' mod 2
+		(either zero or one)
+
+		this method is much faster than using Mod( object_with_value_two )
+	*/
+	uint Mod2() const
+	{
+		if( exponent>sint(0) || exponent<=-sint(man*TTMATH_BITS_PER_UINT) )
+			return 0;
+
+		sint exp_int = exponent.ToInt();
+		// 'exp_int' is negative (or zero), we set it as positive
+		exp_int = -exp_int;
+
+	return mantissa.GetBit(exp_int);
+	}
+
+
+	/*!
+		power this = this ^ pow
+		(pow without a sign)
+
+		binary algorithm (r-to-l)
+
+		return values:
+		0 - ok
+		1 - carry
+		2 - incorrect arguments (0^0)
+	*/
+	template<uint pow_size>
+	uint Pow(UInt<pow_size> pow)
+	{
+		if( IsNan() )
+			return 1;
+
+		if( IsZero() )
+		{
+			if( pow.IsZero() )
+			{
+				// we don't define zero^zero
+				SetNan();
+				return 2;
+			}
+
+			// 0^(+something) is zero
+			return 0;
+		}
+
+		Big<exp, man> start(*this);
+		Big<exp, man> result;
+		result.SetOne();
+		uint c = 0;
+
+		while( !c )
+		{
+			if( pow.table[0] & 1 )
+				c += result.Mul(start);
+
+			pow.Rcr(1);
+
+			if( pow.IsZero() )
+				break;
+
+			c += start.Mul(start);
+		}
+
+		*this = result;
+
+	return CheckCarry(c);
+	}
+
+
+	/*!
+		power this = this ^ pow
+		p can be negative
+
+		return values:
+		0 - ok
+		1 - carry
+		2 - incorrect arguments 0^0 or 0^(-something)
+	*/
+	template<uint pow_size>
+	uint Pow(Int<pow_size> pow)
+	{
+		if( IsNan() )
+			return 1;
+
+		if( !pow.IsSign() )
+			return Pow( UInt<pow_size>(pow) );
+
+		if( IsZero() )
+		{
+			// if 'p' is negative then
+			// 'this' must be different from zero
+			SetNan();
+			return 2;
+		}
+
+		uint c = pow.ChangeSign();
+
+		Big<exp, man> t(*this);
+		c += t.Pow( UInt<pow_size>(pow) ); // here can only be a carry (return:1)
+
+		SetOne();
+		c += Div(t);
+
+	return CheckCarry(c);
+	}
+
+
+	/*!
+		power this = this ^ abs([pow])
+		pow is treated as a value without a sign and without a fraction
+		 if pow has a sign then the method pow.Abs() is used
+		 if pow has a fraction the fraction is skipped (not used in calculation)
+
+		return values:
+		0 - ok
+		1 - carry
+		2 - incorrect arguments (0^0)
+	*/
+	uint PowUInt(Big<exp, man> pow)
+	{
+		if( IsNan() || pow.IsNan() )
+			return CheckCarry(1);
+
+		if( IsZero() )
+		{
+			if( pow.IsZero() )
+			{
+				SetNan();
+				return 2;
+			}
+
+			// 0^(+something) is zero
+			return 0;
+		}
+
+		if( pow.IsSign() )
+			pow.Abs();
+
+		Big<exp, man> start(*this);
+		Big<exp, man> result;
+		Big<exp, man> one;
+		uint c = 0;
+		one.SetOne();
+		result = one;
+
+		while( !c )
+		{
+			if( pow.Mod2() )
+				c += result.Mul(start);
+
+			c += pow.exponent.SubOne();
+
+			if( pow < one )
+				break;
+
+			c += start.Mul(start);
+		}
+
+		*this = result;
+
+	return CheckCarry(c);
+	}
+
+
+	/*!
+		power this = this ^ [pow]
+		pow is treated as a value without a fraction
+		pow can be negative
+
+		return values:
+		0 - ok
+		1 - carry
+		2 - incorrect arguments 0^0 or 0^(-something)
+	*/
+	uint PowInt(const Big<exp, man> & pow)
+	{
+		if( IsNan() || pow.IsNan() )
+			return CheckCarry(1);
+
+		if( !pow.IsSign() )
+			return PowUInt(pow);
+
+		if( IsZero() )
+		{
+			// if 'pow' is negative then
+			// 'this' must be different from zero
+			SetNan();
+			return 2;
+		}
+
+		Big<exp, man> temp(*this);
+		uint c = temp.PowUInt(pow); // here can only be a carry (result:1)
+
+		SetOne();
+		c += Div(temp);
+
+	return CheckCarry(c);
+	}
+
+
+	/*!
+		power this = this ^ pow
+		this must be greater than zero (this > 0)
+		pow can be negative and with fraction
+
+		return values:
+		0 - ok
+		1 - carry
+		2 - incorrect argument ('this' <= 0)
+	*/
+	uint PowFrac(const Big<exp, man> & pow)
+	{
+		if( IsNan() || pow.IsNan() )
+			return CheckCarry(1);
+
+		Big<exp, man> temp;
+		uint c = temp.Ln(*this);
+
+		if( c != 0 ) // can be 2 from Ln()
+		{
+			SetNan();
+			return c;
+		}
+
+		c += temp.Mul(pow);
+		c += Exp(temp);
+
+	return CheckCarry(c);
+	}
+
+
+	/*!
+		power this = this ^ pow
+		pow can be negative and with fraction
+
+		return values:
+		0 - ok
+		1 - carry
+		2 - incorrect argument ('this' or 'pow')
+	*/
+	uint Pow(const Big<exp, man> & pow)
+	{
+		if( IsNan() || pow.IsNan() )
+			return CheckCarry(1);
+
+		if( IsZero() )
+		{
+			// 0^pow will be 0 only for pow>0
