@@ -3557,3 +3557,348 @@ public:
 	template<uint int_size>
 	Big(const Int<int_size> & value)
 	{
+		FromInt(value);
+	}
+
+
+	/*!
+		an operator= for converting from 'UInt<int_size>' to this class
+	*/
+	template<uint int_size>
+	Big<exp,man> & operator=(const UInt<int_size> & value)
+	{
+		FromUInt(value);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting from 'UInt<int_size>' to this class
+	*/
+	template<uint int_size>
+	Big(const UInt<int_size> & value)
+	{
+		FromUInt(value);
+	}
+
+
+	/*!
+		an operator= for converting from 'Big<another_exp, another_man>' to this class
+	*/
+	template<uint another_exp, uint another_man>
+	Big<exp,man> & operator=(const Big<another_exp, another_man> & value)
+	{
+		FromBig(value);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting from 'Big<another_exp, another_man>' to this class
+	*/
+	template<uint another_exp, uint another_man>
+	Big(const Big<another_exp, another_man> & value)
+	{
+		FromBig(value);
+	}
+
+
+	/*!
+		a default constructor
+
+		by default we don't set any of the members to zero
+		only NaN flag is set
+
+		if you want the mantissa and exponent to be set to zero 
+		define TTMATH_BIG_DEFAULT_CLEAR macro
+		(useful for debug purposes)
+	*/
+	Big()
+	{
+		#ifdef TTMATH_BIG_DEFAULT_CLEAR
+
+			SetZeroNan();
+
+		#else
+
+			info = TTMATH_BIG_NAN;
+			// we're directly setting 'info' (instead of calling SetNan())
+			// in order to get rid of a warning saying that 'info' is uninitialized
+
+		#endif
+	}
+
+
+	/*!
+		a destructor
+	*/
+	~Big()
+	{
+	}
+
+
+	/*!
+		the default assignment operator
+	*/
+	Big<exp,man> & operator=(const Big<exp,man> & value)
+	{
+		info     = value.info;
+		exponent = value.exponent;
+		mantissa = value.mantissa;
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for copying from another object of this class
+	*/
+	
+	Big(const Big<exp,man> & value)
+	{
+		operator=(value);
+	}
+	
+
+
+	/*!
+		a method for converting into a string
+		struct Conv is defined in ttmathtypes.h, look there for more information about parameters
+
+		output:
+			return value:
+			0 - ok and 'result' will be an object of type std::string (or std::wstring) which holds the value
+			1 - if there is a carry (it shoudn't be in a normal situation - if it is that means there
+			    is somewhere an error in the library)
+	*/
+	uint ToString(	std::string & result,
+					uint base         = 10,
+					bool scient       = false,
+					sint scient_from  = 15,
+					sint round        = -1,
+					bool trim_zeroes  = true,
+					char comma     = '.' ) const
+	{
+		Conv conv;
+
+		conv.base         = base;
+		conv.scient       = scient;
+		conv.scient_from  = scient_from;
+		conv.round        = round;
+		conv.trim_zeroes  = trim_zeroes;
+		conv.comma        = static_cast<uint>(comma);
+
+	return ToStringBase<std::string, char>(result, conv);
+	}
+
+
+	/*!
+		a method for converting into a string
+		struct Conv is defined in ttmathtypes.h, look there for more information about parameters
+	*/
+	uint ToString(std::string & result, const Conv & conv) const
+	{
+		return ToStringBase<std::string, char>(result, conv);
+	}
+
+
+	/*!
+		a method for converting into a string
+		struct Conv is defined in ttmathtypes.h, look there for more information about parameters
+	*/
+	std::string ToString(const Conv & conv) const
+	{
+		std::string result;
+		ToStringBase<std::string, char>(result, conv);
+		
+	return result;
+	}
+
+
+	/*!
+		a method for converting into a string
+		struct Conv is defined in ttmathtypes.h, look there for more information about parameters
+	*/
+	std::string ToString(uint base = 10) const
+	{
+		Conv conv;
+		conv.base = base;
+
+	return ToString(conv);
+	}
+
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+
+	/*!
+		a method for converting into a string
+		struct Conv is defined in ttmathtypes.h, look there for more information about parameters
+	*/
+	uint ToString(	std::wstring & result,
+					uint base         = 10,
+					bool scient       = false,
+					sint scient_from  = 15,
+					sint round        = -1,
+					bool trim_zeroes  = true,
+					wchar_t comma     = '.' ) const
+	{
+		Conv conv;
+
+		conv.base         = base;
+		conv.scient       = scient;
+		conv.scient_from  = scient_from;
+		conv.round        = round;
+		conv.trim_zeroes  = trim_zeroes;
+		conv.comma        = static_cast<uint>(comma);
+
+	return ToStringBase<std::wstring, wchar_t>(result, conv);
+	}
+
+
+	/*!
+		a method for converting into a string
+		struct Conv is defined in ttmathtypes.h, look there for more information about parameters
+	*/
+	uint ToString(std::wstring & result, const Conv & conv) const
+	{
+		return ToStringBase<std::wstring, wchar_t>(result, conv);
+	}
+
+
+	/*!
+		a method for converting into a string
+		struct Conv is defined in ttmathtypes.h, look there for more information about parameters
+	*/
+	std::wstring ToWString(const Conv & conv) const
+	{
+		std::wstring result;
+		ToStringBase<std::wstring, wchar_t>(result, conv);
+		
+	return result;
+	}
+
+
+	/*!
+		a method for converting into a string
+		struct Conv is defined in ttmathtypes.h, look there for more information about parameters
+	*/
+	std::wstring ToWString(uint base = 10) const
+	{
+		Conv conv;
+		conv.base = base;
+
+	return ToWString(conv);
+	}
+
+#endif
+
+
+
+private:
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	uint ToStringBase(string_type & result, const Conv & conv) const
+	{
+		static char error_overflow_msg[] = "overflow";
+		static char error_nan_msg[]      = "NaN";
+		result.erase();
+
+		if( IsNan() )
+		{
+			Misc::AssignString(result, error_nan_msg);
+			return 0;
+		}
+
+		if( conv.base<2 || conv.base>16 )
+		{
+			Misc::AssignString(result, error_overflow_msg);
+			return 1;
+		}
+	
+		if( IsZero() )
+		{
+			result = '0';
+
+		return 0;
+		}
+
+		/*
+			since 'base' is greater or equal 2 that 'new_exp' of type 'Int<exp>' should
+			hold the new value of exponent but we're using 'Int<exp+1>' because
+			if the value for example would be 'max()' then we couldn't show it
+
+				max() ->  11111111 * 2 ^ 11111111111  (bin)(the mantissa and exponent have all bits set)
+				if we were using 'Int<exp>' we couldn't show it in this format:
+				1,1111111 * 2 ^ 11111111111  (bin)
+				because we have to add something to the mantissa and because 
+				mantissa is full we can't do it and it'll be a carry
+				(look at ToString_SetCommaAndExponent(...))
+
+				when the base would be greater than two (for example 10) 
+				we could use 'Int<exp>' here
+		*/
+		Int<exp+1> new_exp;
+
+		if( ToString_CreateNewMantissaAndExponent<string_type, char_type>(result, conv, new_exp) )
+		{
+			Misc::AssignString(result, error_overflow_msg);
+			return 1;
+		}
+
+			
+		if( ToString_SetCommaAndExponent<string_type, char_type>(result, conv, new_exp) )
+		{
+			Misc::AssignString(result, error_overflow_msg);
+			return 1;
+		}
+
+		if( IsSign() )
+			result.insert(result.begin(), '-');
+
+
+	// converted successfully
+	return 0;
+	}
+
+
+
+	/*!
+		in the method 'ToString_CreateNewMantissaAndExponent()' we're using 
+		type 'Big<exp+1,man>' and we should have the ability to use some
+		necessary methods from that class (methods which are private here)
+	*/
+	friend class Big<exp-1,man>;
+
+
+	/*!
+		an auxiliary method for converting into the string
+
+		input:
+			base - the base in range <2,16>
+
+		output:
+			return values:
+				0 - ok
+				1 - if there was a carry
+			new_man - the new mantissa for 'base'
+			new_exp - the new exponent for 'base'
+
+		mathematic part:
+
+		the value is stored as:
+			value = mantissa * 2^exponent
+		we want to show 'value' as:
+			value = new_man * base^new_exp
+
+		then 'new_man' we'll print using the standard method from UInt<> type for printing
+		and 'new_exp' is the offset of the comma operator in a system of a base 'base'
+
+		value = mantissa * 2^exponent
