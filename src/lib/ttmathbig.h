@@ -3199,3 +3199,361 @@ public:
 	*/
 	uint FromUInt(ulint value)
 	{
+		if( value == 0 )
+		{
+			SetZero();
+			return 0;
+		}
+
+		info = 0;
+
+		if( man == 1 )
+		{
+			sint bit = mantissa.FindLeadingBitInWord(uint(value >> TTMATH_BITS_PER_UINT));
+
+			if( bit != -1 )
+			{
+				// the highest word from value is different from zero
+				bit += 1;
+				value >>= bit;
+				exponent = bit;
+			}
+			else
+			{
+				exponent.SetZero();
+			}
+
+			mantissa.table[0] = uint(value);
+		}
+		else
+		{
+		#ifdef _MSC_VER
+		//warning C4307: '*' : integral constant overflow
+		#pragma warning( disable: 4307 )
+		#endif
+
+			// man >= 2
+			mantissa.table[man-1] = uint(value >> TTMATH_BITS_PER_UINT);
+			mantissa.table[man-2] = uint(value);
+
+		#ifdef _MSC_VER
+		//warning C4307: '*' : integral constant overflow
+		#pragma warning( default: 4307 )
+		#endif
+
+			exponent = -sint(man-2) * sint(TTMATH_BITS_PER_UINT);
+
+			for(uint i=0 ; i<man-2 ; ++i)
+				mantissa.table[i] = 0;
+		}
+
+		// there shouldn't be a carry because 'value' has the 'ulint' type 
+		// (we have	sufficient exponent)
+		Standardizing();
+
+	return 0;
+	}
+
+
+	/*!
+		a method for converting 'ulint' (64bit unsigned integer) to this class
+	*/
+	uint FromInt(ulint value)
+	{
+		return FromUInt(value);
+	}
+
+
+	/*!
+		a method for converting 'slint' (64bit signed integer) to this class
+	*/
+	uint FromInt(slint value)
+	{
+	bool is_sign = false;
+
+		if( value < 0 )
+		{
+			value   = -value;
+			is_sign = true;
+		}
+
+		FromUInt(ulint(value));
+
+		if( is_sign )
+			SetSign();
+
+	return 0;
+	}
+
+
+	/*!
+		a constructor for converting 'ulint' (64bit unsigned integer) to this class
+	*/
+	Big(ulint value)
+	{	
+		FromUInt(value);
+	}
+
+
+	/*!
+		an operator for converting 'ulint' (64bit unsigned integer) to this class
+	*/
+	Big<exp, man> & operator=(ulint value)
+	{	
+		FromUInt(value);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting 'slint' (64bit signed integer) to this class
+	*/
+	Big(slint value)
+	{	
+		FromInt(value);
+	}
+
+
+	/*!
+		an operator for converting 'slint' (64bit signed integer) to this class
+	*/
+	Big<exp, man> & operator=(slint value)
+	{	
+		FromInt(value);
+
+	return *this;
+	}
+
+#endif
+
+
+
+#ifdef TTMATH_PLATFORM64
+
+
+	/*!
+		this method converts 'this' into 'result' (32 bit unsigned integer)
+		***this method is created only on a 64bit platform***
+		if the value is too big this method returns a carry (1)
+	*/
+	uint ToUInt(unsigned int & result) const
+	{
+	uint result_uint;
+
+		uint c = ToUInt(result_uint);
+		result = (unsigned int)result_uint;
+
+		if( c || result_uint != uint(result) )
+			return 1;
+
+	return 0;
+	}
+
+
+	/*!
+		this method converts 'this' into 'result' (32 bit unsigned integer)
+		***this method is created only on a 64bit platform***
+		if the value is too big this method returns a carry (1)
+	*/
+	uint ToInt(unsigned int & result) const
+	{
+		return ToUInt(result);
+	}
+
+
+	/*!
+		this method converts 'this' into 'result' (32 bit signed integer)
+		***this method is created only on a 64bit platform***
+		if the value is too big this method returns a carry (1)
+	*/
+	uint ToInt(signed int & result) const
+	{
+	sint result_sint;
+
+		uint c = ToInt(result_sint);
+		result = (signed int)result_sint;
+
+		if( c || result_sint != sint(result) )
+			return 1;
+
+	return 0;
+	}
+
+
+	/*
+		this method converts 32 bit unsigned int to this class
+		***this method is created only on a 64bit platform***
+	*/
+	uint FromUInt(unsigned int value)
+	{
+		return FromUInt(uint(value));
+	}
+
+
+	/*
+		this method converts 32 bit unsigned int to this class
+		***this method is created only on a 64bit platform***
+	*/
+	uint FromInt(unsigned int value)
+	{
+		return FromUInt(uint(value));
+	}
+
+
+	/*
+		this method converts 32 bit signed int to this class
+		***this method is created only on a 64bit platform***
+	*/
+	uint FromInt(signed int value)
+	{
+		return FromInt(sint(value));
+	}
+
+
+	/*!
+		an operator= for converting 32 bit unsigned int to this class
+		***this operator is created only on a 64bit platform***
+	*/
+	Big<exp, man> & operator=(unsigned int value)
+	{
+		FromUInt(value);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting 32 bit unsigned int to this class
+		***this constructor is created only on a 64bit platform***
+	*/
+	Big(unsigned int value)
+	{
+		FromUInt(value);
+	}
+
+
+	/*!
+		an operator for converting 32 bit signed int to this class
+		***this operator is created only on a 64bit platform***
+	*/
+	Big<exp, man> & operator=(signed int value)
+	{
+		FromInt(value);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting 32 bit signed int to this class
+		***this constructor is created only on a 64bit platform***
+	*/
+	Big(signed int value)
+	{
+		FromInt(value);
+	}
+
+#endif
+
+
+private:
+
+	/*!
+		an auxiliary method for converting from UInt and Int
+
+		we assume that there'll never be a carry here
+		(we have an exponent and the value in Big can be bigger than
+		that one from the UInt)
+	*/
+	template<uint int_size>
+	uint FromUIntOrInt(const UInt<int_size> & value, sint compensation)
+	{
+		uint minimum_size = (int_size < man)? int_size : man;
+		exponent          = (sint(int_size)-sint(man)) * sint(TTMATH_BITS_PER_UINT) - compensation;
+
+		// copying the highest words
+		uint i;
+		for(i=1 ; i<=minimum_size ; ++i)
+			mantissa.table[man-i] = value.table[int_size-i];
+
+		// setting the rest of mantissa.table into zero (if some has left)
+		for( ; i<=man ; ++i)
+			mantissa.table[man-i] = 0;
+
+		// the highest bit is either one or zero (when the whole mantissa is zero)
+		// we can only call CorrectZero()
+		CorrectZero();
+
+	return 0;
+	}
+
+
+public:
+
+	/*!
+		a method for converting from 'UInt<int_size>' to this class
+	*/
+	template<uint int_size>
+	uint FromUInt(UInt<int_size> value)
+	{
+		info = 0;
+		sint compensation = (sint)value.CompensationToLeft();
+	
+	return FromUIntOrInt(value, compensation);
+	}
+
+
+	/*!
+		a method for converting from 'UInt<int_size>' to this class
+	*/
+	template<uint int_size>
+	uint FromInt(const UInt<int_size> & value)
+	{
+		return FromUInt(value);
+	}
+
+		
+	/*!
+		a method for converting from 'Int<int_size>' to this class
+	*/
+	template<uint int_size>
+	uint FromInt(Int<int_size> value)
+	{
+		info = 0;
+		bool is_sign = false;
+
+		if( value.IsSign() )
+		{
+			value.ChangeSign();
+			is_sign = true;
+		}
+		
+		sint compensation = (sint)value.CompensationToLeft();
+		FromUIntOrInt(value, compensation);
+
+		if( is_sign )
+			SetSign();
+
+	return 0;
+	}
+
+
+	/*!
+		an operator= for converting from 'Int<int_size>' to this class
+	*/
+	template<uint int_size>
+	Big<exp,man> & operator=(const Int<int_size> & value)
+	{
+		FromInt(value);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting from 'Int<int_size>' to this class
+	*/
+	template<uint int_size>
+	Big(const Int<int_size> & value)
+	{
