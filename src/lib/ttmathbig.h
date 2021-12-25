@@ -3902,3 +3902,329 @@ private:
 		and 'new_exp' is the offset of the comma operator in a system of a base 'base'
 
 		value = mantissa * 2^exponent
+		value = mantissa * 2^exponent * (base^new_exp / base^new_exp)
+		value = mantissa * (2^exponent / base^new_exp) * base^new_exp
+
+		look at the part (2^exponent / base^new_exp), there'll be good if we take
+		a 'new_exp' equal that value when the (2^exponent / base^new_exp) will be equal one
+
+		on account of the 'base' is not as power of 2 (can be from 2 to 16),
+		this formula will not be true for integer 'new_exp' then in our case we take 
+		'base^new_exp' _greater_ than '2^exponent' 
+
+		if 'base^new_exp' were smaller than '2^exponent' the new mantissa could be
+		greater than the max value of the container UInt<man>
+
+		value = mantissa * (2^exponent / base^new_exp) * base^new_exp
+		  let M = mantissa * (2^exponent / base^new_exp) then
+		value = M * base^new_exp
+
+		in our calculation we treat M as floating value showing it as:
+			M = mm * 2^ee where ee will be <= 0 
+
+		next we'll move all bits of mm into the right when ee is equal zero
+		abs(ee) must not be too big that only few bits from mm we can leave
+
+		then we'll have:
+			M = mmm * 2^0
+		'mmm' is the new_man which we're looking for
+
+
+		new_exp we calculate in this way:
+			2^exponent <= base^new_exp
+			new_exp >= log base (2^exponent)   <- logarithm with the base 'base' from (2^exponent)
+			
+			but we need new_exp as integer then we test:
+			if new_exp is greater than zero and with fraction we add one to new_exp
+			  new_exp = new_exp + 1    (if new_exp>0 and with fraction)
+			and at the end we take the integer part:
+			  new_exp = int(new_exp)
+	*/
+	template<class string_type, class char_type>
+	uint ToString_CreateNewMantissaAndExponent(	string_type & new_man, const Conv & conv,
+												Int<exp+1> & new_exp) const
+	{
+	uint c = 0;
+
+		if( conv.base<2 || conv.base>16 )
+			return 1;
+	
+		// special method for base equal 2
+		if( conv.base == 2 )
+			return ToString_CreateNewMantissaAndExponent_Base2(new_man, new_exp);
+
+		// special method for base equal 4
+		if( conv.base == 4 )
+			return ToString_CreateNewMantissaAndExponent_BasePow2(new_man, new_exp, 2);
+
+		// special method for base equal 8
+		if( conv.base == 8 )
+			return ToString_CreateNewMantissaAndExponent_BasePow2(new_man, new_exp, 3);
+
+		// special method for base equal 16
+		if( conv.base == 16 )
+			return ToString_CreateNewMantissaAndExponent_BasePow2(new_man, new_exp, 4);
+
+
+		// this = mantissa * 2^exponent
+
+		// temp = +1 * 2^exponent  
+		// we're using a bigger type than 'big<exp,man>' (look below)
+		Big<exp+1,man> temp;
+		temp.info = 0;
+		temp.exponent = exponent;
+		temp.mantissa.SetOne();
+		c += temp.Standardizing();
+
+		// new_exp_ = log base (2^exponent)   
+		// if new_exp_ is positive and with fraction then we add one 
+		Big<exp+1,man> new_exp_;
+		c += new_exp_.ToString_Log(temp, conv.base); // this logarithm isn't very complicated
+
+		// rounding up to the nearest integer
+		if( !new_exp_.IsInteger() )
+		{
+			if( !new_exp_.IsSign() )
+				c += new_exp_.AddOne(); // new_exp_ > 0 and with fraction
+
+			new_exp_.SkipFraction();
+		}
+
+		if( ToString_CreateNewMantissaTryExponent<string_type, char_type>(new_man, conv, new_exp_, new_exp) )
+		{
+			// in very rare cases there can be an overflow from ToString_CreateNewMantissaTryExponent
+			// it means that new_exp_ was too small (the problem comes from floating point numbers precision)
+			// so we increse new_exp_ and try again
+			new_exp_.AddOne();
+			c += ToString_CreateNewMantissaTryExponent<string_type, char_type>(new_man, conv, new_exp_, new_exp);
+		}
+
+	return (c==0)? 0 : 1;
+	}
+
+
+
+	/*!
+		an auxiliary method for converting into the string
+
+		trying to calculate new_man for given exponent (new_exp_)
+		if there is a carry it can mean that new_exp_ is too small
+	*/
+	template<class string_type, class char_type>
+	uint ToString_CreateNewMantissaTryExponent(	string_type & new_man, const Conv & conv,
+												const Big<exp+1,man> & new_exp_, Int<exp+1> & new_exp) const
+	{
+	uint c = 0;
+
+		// because 'base^new_exp' is >= '2^exponent' then 
+		// because base is >= 2 then we've got:
+		// 'new_exp_' must be smaller or equal 'new_exp'
+		// and we can pass it into the Int<exp> type
+		// (in fact we're using a greater type then it'll be ok)
+		c += new_exp_.ToInt(new_exp);
+
+		// base_ = base
+		Big<exp+1,man> base_(conv.base);
+
+		// base_ = base_ ^ new_exp_
+		c += base_.Pow( new_exp_ ); // use new_exp_ so Pow(Big<> &) version will be used
+		// if we hadn't used a bigger type than 'Big<exp,man>' then the result
+		// of this formula 'Pow(...)' would have been with an overflow
+
+		// temp = mantissa * 2^exponent / base_^new_exp_
+		Big<exp+1,man> temp;
+		temp.info = 0;
+		temp.mantissa = mantissa;
+		temp.exponent = exponent;
+		c += temp.Div(base_);
+
+		// moving all bits of the mantissa into the right 
+		// (how many times to move depend on the exponent)
+		c += temp.ToString_MoveMantissaIntoRight();
+
+		// because we took 'new_exp' as small as it was
+		// possible ([log base (2^exponent)] + 1) that after the division 
+		// (temp.Div( base_ )) the value of exponent should be equal zero or 
+		// minimum smaller than zero then we've got the mantissa which has 
+		// maximum valid bits
+		temp.mantissa.ToString(new_man, conv.base);
+
+		if( IsInteger() )
+		{
+			// making sure the new mantissa will be without fraction (integer)
+			ToString_CheckMantissaInteger<string_type, char_type>(new_man, new_exp);
+		}
+		else
+		if( conv.base_round )
+		{
+			c += ToString_BaseRound<string_type, char_type>(new_man, conv, new_exp);
+		}
+
+	return (c==0)? 0 : 1;
+	}
+
+
+	/*!
+		this method calculates the logarithm
+		it is used by ToString_CreateNewMantissaAndExponent() method
+
+		it's not too complicated
+		because x=+1*2^exponent (mantissa is one) then during the calculation
+		the Ln(x) will not be making the long formula from LnSurrounding1()
+		and only we have to calculate 'Ln(base)' but it'll be calculated
+		only once, the next time we will get it from the 'history'
+
+        x is greater than 0
+		base is in <2,16> range
+	*/
+	uint ToString_Log(const Big<exp,man> & x, uint base)
+	{
+		TTMATH_REFERENCE_ASSERT( x )
+		TTMATH_ASSERT( base>=2 && base<=16 )
+
+		Big<exp,man> temp;
+		temp.SetOne();
+
+		if( x == temp )
+		{
+			// log(1) is 0
+			SetZero();
+
+		return 0;
+		}
+
+		// there can be only a carry
+		// because the 'x' is in '1+2*exponent' form then 
+		// the long formula from LnSurrounding1() will not be calculated
+		// (LnSurrounding1() will return one immediately)
+		uint c = Ln(x);
+
+		if( base==10 && man<=TTMATH_BUILTIN_VARIABLES_SIZE )
+		{
+			// for the base equal 10 we're using SetLn10() instead of calculating it
+			// (only if we have the constant sufficient big)
+			temp.SetLn10();
+		}
+		else
+		{
+			c += ToString_LogBase(base, temp);
+		}
+
+		c += Div( temp );
+
+	return (c==0)? 0 : 1;
+	}
+
+
+#ifndef TTMATH_MULTITHREADS
+
+	/*!
+		this method calculates the logarithm of 'base'
+		it's used in single thread environment
+	*/
+	uint ToString_LogBase(uint base, Big<exp,man> & result)
+	{
+		TTMATH_ASSERT( base>=2 && base<=16 )
+
+		// this guardians are initialized before the program runs (static POD types)
+		static int guardians[15] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+		static Big<exp,man> log_history[15];
+		uint index = base - 2;
+		uint c = 0;
+	
+		if( guardians[index] == 0 )
+		{
+			Big<exp,man> base_(base);
+			c += log_history[index].Ln(base_);
+			guardians[index] = 1;
+		}
+
+		result = log_history[index];
+
+	return (c==0)? 0 : 1;
+	}
+
+#else
+
+	/*!
+		this method calculates the logarithm of 'base'
+		it's used in multi-thread environment
+	*/
+	uint ToString_LogBase(uint base, Big<exp,man> & result)
+	{
+		TTMATH_ASSERT( base>=2 && base<=16 )
+
+		// this guardians are initialized before the program runs (static POD types)
+		volatile static sig_atomic_t guardians[15] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+		static Big<exp,man> * plog_history;
+		uint index = base - 2;
+		uint c = 0;
+	
+		// double-checked locking
+		if( guardians[index] == 0 )
+		{
+			ThreadLock thread_lock;
+
+			// locking
+			if( thread_lock.Lock() )
+			{
+				static Big<exp,man> log_history[15];
+
+				if( guardians[index] == 0 )
+				{
+					plog_history = log_history;
+				
+					Big<exp,man> base_(base);
+					c += log_history[index].Ln(base_);
+					guardians[index] = 1;
+				}
+			}
+			else
+			{
+				// there was a problem with locking, we store the result directly in 'result' object
+				Big<exp,man> base_(base);
+				c += result.Ln(base_);
+				
+			return (c==0)? 0 : 1;
+			}
+
+			// automatically unlocking
+		}
+
+		result = plog_history[index];
+
+	return (c==0)? 0 : 1;
+	}
+
+#endif
+
+	/*!
+		an auxiliary method for converting into the string (private)
+
+		this method moving all bits from mantissa into the right side
+		the exponent tell us how many times moving (the exponent is <=0)
+	*/
+	uint ToString_MoveMantissaIntoRight()
+	{
+		if( exponent.IsZero() )
+			return 0;
+		
+		// exponent can't be greater than zero
+		// because we would cat the highest bits of the mantissa
+		if( !exponent.IsSign() )
+			return 1;
+
+
+		if( exponent <= -sint(man*TTMATH_BITS_PER_UINT) )
+			// if 'exponent' is <= than '-sint(man*TTMATH_BITS_PER_UINT)'
+			// it means that we must cut the whole mantissa
+			// (there'll not be any of the valid bits)
+			return 1;
+
+		// e will be from (-man*TTMATH_BITS_PER_UINT, 0>
+		sint e = -( exponent.ToInt() );
+		mantissa.Rcr(e,0);
+
+	return 0;
+	}
+
