@@ -4567,3 +4567,336 @@ private:
 			return carry;
 
 		Int<exp+1> scientific_exp( new_exp );
+
+		// 'new_exp' depends on the 'new_man' which is stored like this e.g:
+		//  32342343234 (the comma is at the end)
+		// we'd like to show it in this way:
+		//  3.2342343234 (the 'scientific_exp' is connected with this example)
+
+		sint offset = sint( new_man.length() ) - 1;
+		carry += scientific_exp.Add( offset );
+		// there shouldn't have been a carry because we're using
+		// a greater type -- 'Int<exp+1>' instead of 'Int<exp>'
+
+		bool print_scientific = conv.scient;
+
+		if( !print_scientific )
+		{
+			if( scientific_exp > conv.scient_from || scientific_exp < -sint(conv.scient_from) )
+				print_scientific = true;
+		}
+
+		if( !print_scientific )
+			ToString_SetCommaAndExponent_Normal<string_type, char_type>(new_man, conv, new_exp);
+		else
+			// we're passing the 'scientific_exp' instead of 'new_exp' here
+			ToString_SetCommaAndExponent_Scientific<string_type, char_type>(new_man, conv, scientific_exp);
+
+	return (carry==0)? 0 : 1;
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	void ToString_SetCommaAndExponent_Normal(string_type & new_man,	const Conv & conv, Int<exp+1> & new_exp ) const
+	{
+		if( !new_exp.IsSign() ) // it means: if( new_exp >= 0 )
+			ToString_SetCommaAndExponent_Normal_AddingZero<string_type, char_type>(new_man, new_exp);
+		else
+			ToString_SetCommaAndExponent_Normal_SetCommaInside<string_type, char_type>(new_man, conv, new_exp);
+
+
+		ToString_Group_man<string_type, char_type>(new_man, conv);
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	void ToString_SetCommaAndExponent_Normal_AddingZero(string_type & new_man,
+														Int<exp+1> & new_exp) const
+	{
+		// we're adding zero characters at the end
+		// 'i' will be smaller than 'when_scientific' (or equal)
+		uint i = new_exp.ToInt();
+		
+		if( new_man.length() + i > new_man.capacity() )
+			// about 6 characters more (we'll need it for the comma or something)
+			new_man.reserve( new_man.length() + i + 6 );
+		
+		for( ; i>0 ; --i)
+			new_man += '0';
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	void ToString_SetCommaAndExponent_Normal_SetCommaInside(
+															string_type & new_man,
+															const Conv & conv,
+															Int<exp+1> & new_exp ) const
+	{
+		// new_exp is < 0 
+
+		sint new_man_len = sint(new_man.length()); // 'new_man_len' with a sign
+		sint e = -( new_exp.ToInt() ); // 'e' will be positive
+
+		if( new_exp > -new_man_len )
+		{
+			// we're setting the comma within the mantissa
+			
+			sint index = new_man_len - e;
+			new_man.insert( new_man.begin() + index, static_cast<char_type>(conv.comma));
+		}
+		else
+		{
+			// we're adding zero characters before the mantissa
+
+			uint how_many = e - new_man_len;
+			string_type man_temp(how_many+1, '0');
+
+			man_temp.insert( man_temp.begin()+1, static_cast<char_type>(conv.comma));
+			new_man.insert(0, man_temp);
+		}
+
+		ToString_CorrectDigitsAfterComma<string_type, char_type>(new_man, conv);
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	void ToString_SetCommaAndExponent_Scientific(	string_type & new_man,
+													const Conv & conv,
+													Int<exp+1> & scientific_exp ) const
+	{
+		if( new_man.empty() )
+			return;
+		
+		if( new_man.size() > 1 )
+		{
+			new_man.insert( new_man.begin()+1, static_cast<char_type>(conv.comma) );
+			ToString_CorrectDigitsAfterComma<string_type, char_type>(new_man, conv);
+		}
+
+		ToString_Group_man<string_type, char_type>(new_man, conv);
+
+		if( conv.base == 10 )
+		{
+			new_man += 'e';
+
+			if( !scientific_exp.IsSign() )
+				new_man += '+';
+		}
+		else
+		{
+			// the 10 here is meant as the base 'base'
+			// (no matter which 'base' we're using there'll always be 10 here)
+			Misc::AddString(new_man, "*10^");
+		}
+
+		string_type temp_exp;
+		scientific_exp.ToString( temp_exp, conv.base );
+
+		new_man += temp_exp;
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	void ToString_Group_man(string_type & new_man, const Conv & conv) const
+	{
+		typedef typename string_type::size_type StrSize;
+
+		if( conv.group == 0 )
+			return;
+
+		// first we're looking for the comma operator
+		StrSize index = new_man.find(static_cast<char_type>(conv.comma), 0);
+
+		if( index == string_type::npos )
+			index = new_man.size();	
+
+		ToString_Group_man_before_comma<string_type, char_type>(new_man, conv, index);
+		ToString_Group_man_after_comma<string_type, char_type>(new_man, conv, index+1);
+	}
+
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	void ToString_Group_man_before_comma(	string_type & new_man, const Conv & conv,
+											typename string_type::size_type & index) const
+	{
+	typedef typename string_type::size_type StrSize;
+
+		uint group = 0;
+		StrSize i = index;
+		uint group_digits = conv.group_digits;
+
+		if( group_digits < 1 )
+			group_digits = 1;
+
+		// adding group characters before the comma operator
+		// i>0 because on the first position we don't put any additional grouping characters
+		for( ; i>0 ; --i, ++group)
+		{
+			if( group >= group_digits )
+			{
+				group = 0;
+				new_man.insert(i, 1, static_cast<char_type>(conv.group));
+				++index;
+			}
+		}
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	void ToString_Group_man_after_comma(string_type & new_man, const Conv & conv,
+										typename string_type::size_type index) const
+	{
+		uint group = 0;
+		uint group_digits = conv.group_digits;
+
+		if( group_digits < 1 )
+			group_digits = 1;
+
+		for( ; index<new_man.size() ; ++index, ++group)
+		{
+			if( group >= group_digits )
+			{
+				group = 0;
+				new_man.insert(index, 1, static_cast<char_type>(conv.group));
+				++index;
+			}
+		}
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	void ToString_CorrectDigitsAfterComma(	string_type & new_man,
+											const Conv & conv ) const
+	{
+		if( conv.round >= 0 )
+			ToString_CorrectDigitsAfterComma_Round<string_type, char_type>(new_man, conv);
+
+		if( conv.trim_zeroes )
+			ToString_CorrectDigitsAfterComma_CutOffZeroCharacters<string_type, char_type>(new_man, conv);
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	void ToString_CorrectDigitsAfterComma_CutOffZeroCharacters(
+												string_type & new_man,
+												const Conv & conv) const
+	{
+		// minimum two characters
+		if( new_man.length() < 2 )
+			return;
+
+		// we're looking for the index of the last character which is not zero
+		uint i = uint( new_man.length() ) - 1;
+		for( ; i>0 && new_man[i]=='0' ; --i );
+
+		// if there is another character than zero at the end
+		// we're finishing
+		if( i == new_man.length() - 1 )
+			return;
+
+		// we must have a comma 
+		// (the comma can be removed by ToString_CorrectDigitsAfterComma_Round
+		// which is called before)
+		if( new_man.find_last_of(static_cast<char_type>(conv.comma), i) == string_type::npos )
+			return;
+
+		// if directly before the first zero is the comma operator
+		// we're cutting it as well
+		if( i>0 && new_man[i]==static_cast<char_type>(conv.comma) )
+			--i;
+
+		new_man.erase(i+1, new_man.length()-i-1);
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	void ToString_CorrectDigitsAfterComma_Round(
+											string_type & new_man,
+											const Conv & conv ) const
+	{
+		typedef typename string_type::size_type StrSize;
+
+		// first we're looking for the comma operator
+		StrSize index = new_man.find(static_cast<char_type>(conv.comma), 0);
+
+		if( index == string_type::npos )
+			// nothing was found (actually there can't be this situation)
+			return;
+
+		// we're calculating how many digits there are at the end (after the comma)
+		// 'after_comma' will be greater than zero because at the end
+		// we have at least one digit
+		StrSize after_comma = new_man.length() - index - 1;
+
+		// if 'max_digit_after_comma' is greater than 'after_comma' (or equal)
+		// we don't have anything for cutting
+		if( static_cast<StrSize>(conv.round) >= after_comma )
+			return;
+
+		uint last_digit = Misc::CharToDigit( new_man[ index + conv.round + 1 ], conv.base );
+
+		// we're cutting the rest of the string
+		new_man.erase(index + conv.round + 1, after_comma - conv.round);
+
+		if( conv.round == 0 )
+		{
+			// we're cutting the comma operator as well
+			// (it's not needed now because we've cut the whole rest after the comma)
+			new_man.erase(index, 1);
+		}
+
+		if( last_digit >= conv.base / 2 )
+			// we must round here
+			ToString_RoundMantissa_AddOneIntoMantissa<string_type, char_type>(new_man, conv);
+	}
+
+
+
+public:
+
+	/*!
+		a method for converting a string into its value
+
+		it returns 1 if the value is too big -- we cannot pass it into the range
+		of our class Big<exp,man> (or if the base is incorrect)
+
+		that means only digits before the comma operator can make this value too big, 
+		all digits after the comma we can ignore
+
+		'source' - pointer to the string for parsing
+
+		if 'after_source' is set that when this method finishes
+		it sets the pointer to the new first character after parsed value
+
+		'value_read' - if the pointer is provided that means the value_read will be true
