@@ -4228,3 +4228,342 @@ private:
 	return 0;
 	}
 
+
+	/*!
+		a special method similar to the 'ToString_CreateNewMantissaAndExponent'
+		when the 'base' is equal 2
+
+		we use it because if base is equal 2 we don't have to make those
+		complicated calculations and the output is directly from the source
+		(there will not be any small distortions)
+	*/
+	template<class string_type>
+	uint ToString_CreateNewMantissaAndExponent_Base2(	string_type & new_man,
+														Int<exp+1> & new_exp     ) const
+	{
+		for( sint i=man-1 ; i>=0 ; --i )
+		{
+			uint value = mantissa.table[i]; 
+
+			for( uint bit=0 ; bit<TTMATH_BITS_PER_UINT ; ++bit )
+			{
+				if( (value & TTMATH_UINT_HIGHEST_BIT) != 0 )
+					new_man += '1';
+				else
+					new_man += '0';
+
+				value <<= 1;
+			}
+		}
+
+		new_exp = exponent;
+
+	return 0;
+	}
+
+
+	/*!
+		a special method used to calculate the new mantissa and exponent
+		when the 'base' is equal 4, 8 or 16
+
+		when base is 4 then bits is 2
+		when base is 8 then bits is 3
+		when base is 16 then bits is 4
+		(and the algorithm can be used with a base greater than 16)
+	*/
+	template<class string_type>
+	uint ToString_CreateNewMantissaAndExponent_BasePow2(	string_type & new_man,
+															Int<exp+1> & new_exp,
+															uint bits) const
+	{
+		sint move;							// how many times move the mantissa
+		UInt<man+1> man_temp(mantissa);		// man+1 for moving
+		new_exp = exponent;
+		new_exp.DivInt((sint)bits, move);
+
+		if( move != 0 )
+		{
+			// we're moving the man_temp to left-hand side
+			if( move < 0 )
+			{
+				move = sint(bits) + move;
+				new_exp.SubOne();			// when move is < than 0 then new_exp is < 0 too
+			}
+
+			man_temp.Rcl(move);
+		}
+
+
+		if( bits == 3 )
+		{
+			// base 8
+			// now 'move' is greater than or equal 0
+			uint len = man*TTMATH_BITS_PER_UINT + move;
+			return ToString_CreateNewMantissaAndExponent_Base8(new_man, man_temp, len, bits);
+		}
+		else
+		{
+			// base 4 or 16
+			return ToString_CreateNewMantissaAndExponent_Base4or16(new_man, man_temp, bits);
+		}
+	}
+
+
+	/*!
+		a special method used to calculate the new mantissa
+		when the 'base' is equal 8
+
+		bits is always 3
+
+		we can use this algorithm when the base is 4 or 16 too
+		but we have a faster method ToString_CreateNewMantissaAndExponent_Base4or16()
+	*/
+	template<class string_type>
+	uint ToString_CreateNewMantissaAndExponent_Base8(	string_type & new_man,
+														UInt<man+1> & man_temp,
+														uint len,
+														uint bits) const
+	{
+		uint shift = TTMATH_BITS_PER_UINT - bits;
+		uint mask  = TTMATH_UINT_MAX_VALUE >> shift;
+		uint i;
+
+		for( i=0 ; i<len ; i+=bits )
+		{
+			uint digit = man_temp.table[0] & mask;
+			new_man.insert(new_man.begin(), static_cast<char>(Misc::DigitToChar(digit)));
+
+			man_temp.Rcr(bits);
+		}
+
+		TTMATH_ASSERT( man_temp.IsZero() )
+
+	return 0;
+	}
+
+
+	/*!
+		a special method used to calculate the new mantissa
+		when the 'base' is equal 4 or 16
+
+		when the base is equal 4 or 16 the bits is 2 or 4
+		and because TTMATH_BITS_PER_UINT (32 or 64) is divisible by 2 (or 4)
+		then we can get digits from the end of our mantissa
+	*/
+	template<class string_type>
+	uint ToString_CreateNewMantissaAndExponent_Base4or16(	string_type & new_man,
+															UInt<man+1> & man_temp,
+															uint bits) const
+	{
+		TTMATH_ASSERT( TTMATH_BITS_PER_UINT % 2 == 0 )
+		TTMATH_ASSERT( TTMATH_BITS_PER_UINT % 4 == 0 )
+
+		uint shift = TTMATH_BITS_PER_UINT - bits;
+		uint mask  = TTMATH_UINT_MAX_VALUE << shift;
+		uint digit;
+
+		 // table[man] - last word - is different from zero if we moved man_temp
+		digit = man_temp.table[man];
+
+		if( digit != 0 )
+			new_man += static_cast<char>(Misc::DigitToChar(digit));
+
+
+		for( int i=man-1 ; i>=0 ; --i )
+		{
+			uint shift_local = shift;
+			uint mask_local  = mask;
+
+			while( mask_local != 0 )
+			{
+				digit = man_temp.table[i] & mask_local;
+
+				if( shift_local != 0 )
+					digit = digit >> shift_local;
+
+				new_man    += static_cast<char>(Misc::DigitToChar(digit));
+				mask_local  = mask_local >> bits;
+				shift_local = shift_local - bits;
+			}
+		}
+
+	return 0;
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+	*/
+	template<class string_type, class char_type>
+	bool ToString_RoundMantissaWouldBeInteger(string_type & new_man, const Conv & conv, Int<exp+1> & new_exp) const
+	{
+		// if new_exp is greater or equal to zero then we have an integer value,
+		// if new_exp is equal -1 then we have only one digit after the comma
+		// and after rounding it would be an integer value
+		if( !new_exp.IsSign() || new_exp == -1 )
+			return true;
+
+		if( new_man.size() >= TTMATH_UINT_HIGHEST_BIT || new_man.size() < 2 )
+			return true; // oops, the mantissa is too large for calculating (or too small) - we are not doing the base rounding
+		
+		uint i = 0;
+		char_type digit;
+
+		if( new_exp >= -sint(new_man.size()) )
+		{
+			uint new_exp_abs = -new_exp.ToInt();
+			i = new_man.size() - new_exp_abs; // start from the first digit after the comma operator
+		}
+		
+		if( Misc::CharToDigit(new_man[new_man.size()-1]) >= conv.base/2 )
+		{
+			if( new_exp < -sint(new_man.size()) )
+			{
+				// there are some zeroes after the comma operator
+				// (between the comma and the first digit from the mantissa)
+				// and the result value will never be an integer
+				return false;
+			}
+
+			digit = static_cast<char_type>( Misc::DigitToChar(conv.base-1) );
+		}
+		else
+		{
+			digit = '0';
+		}
+
+		for( ; i < new_man.size()-1 ; ++i)
+			if( new_man[i] != digit )
+				return false; // it will not be an integer
+
+	return true; // it will be integer after rounding
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+		(when this is integer)
+
+		after floating point calculating the new mantissa can consist of some fraction
+		so if our value is integer we should check the new mantissa
+		(after the decimal point there should be only zeroes)
+		
+		often this is a last digit different from zero
+		ToString_BaseRound would not get rid of it because the method make a test against 
+		an integer value (ToString_RoundMantissaWouldBeInteger) and returns immediately
+	*/
+	template<class string_type, class char_type>
+	void ToString_CheckMantissaInteger(string_type & new_man, const Int<exp+1> & new_exp) const
+	{
+		if( !new_exp.IsSign() )
+			return; // return if new_exp >= 0
+		
+		uint i = 0;
+		uint man_size = new_man.size();
+
+		if( man_size >= TTMATH_UINT_HIGHEST_BIT )
+			return; // ops, the mantissa is too long
+
+		sint sman_size = -sint(man_size);
+
+		if( new_exp >= sman_size )
+		{
+			sint e = new_exp.ToInt();
+			e = -e;
+			// now e means how many last digits from the mantissa should be equal zero
+
+			i = man_size - uint(e);
+		}
+
+		for( ; i<man_size ; ++i)
+			new_man[i] = '0';
+	}
+
+
+	/*!
+		an auxiliary method for converting into the string
+
+		this method is used for base!=2, base!=4, base!=8 and base!=16
+		we do the rounding when the value has fraction (is not an integer)
+	*/
+	template<class string_type, class char_type>
+	uint ToString_BaseRound(string_type & new_man, const Conv & conv, Int<exp+1> & new_exp) const
+	{
+		// we must have minimum two characters
+		if( new_man.size() < 2 )
+			return 0;
+
+		// assert that there will not be an integer after rounding
+		if( ToString_RoundMantissaWouldBeInteger<string_type, char_type>(new_man, conv, new_exp) )
+			return 0;
+
+		typename string_type::size_type i = new_man.length() - 1;
+
+		// we're erasing the last character
+		uint digit = Misc::CharToDigit( new_man[i] );
+		new_man.erase(i, 1);
+		uint c = new_exp.AddOne();
+
+		// if the last character is greater or equal 'base/2'
+		// we are adding one into the new mantissa
+		if( digit >= conv.base / 2 )
+			ToString_RoundMantissa_AddOneIntoMantissa<string_type, char_type>(new_man, conv);
+
+	return c;
+	}
+	
+
+	/*!
+		an auxiliary method for converting into the string
+
+		this method addes one into the new mantissa
+	*/
+	template<class string_type, class char_type>
+	void ToString_RoundMantissa_AddOneIntoMantissa(string_type & new_man, const Conv & conv) const
+	{
+		if( new_man.empty() )
+			return;
+
+		sint i = sint( new_man.length() ) - 1;
+		bool was_carry = true;
+
+		for( ; i>=0 && was_carry ; --i )
+		{
+			// we can have the comma as well because
+			// we're using this method later in ToString_CorrectDigitsAfterComma_Round()
+			// (we're only ignoring it)
+			if( new_man[i] == static_cast<char_type>(conv.comma) )
+				continue;
+
+			// we're adding one
+			uint digit = Misc::CharToDigit( new_man[i] ) + 1;
+
+			if( digit == conv.base )
+				digit = 0;
+			else
+				was_carry = false;
+
+			new_man[i] = static_cast<char_type>( Misc::DigitToChar(digit) );
+		}
+
+		if( i<0 && was_carry )
+			new_man.insert( new_man.begin() , '1' );
+	}
+
+
+
+	/*!
+		an auxiliary method for converting into the string
+
+		this method sets the comma operator and/or puts the exponent
+		into the string
+	*/
+	template<class string_type, class char_type>
+	uint ToString_SetCommaAndExponent(string_type & new_man, const Conv & conv, Int<exp+1> & new_exp) const
+	{
+	uint carry = 0;
+
+		if( new_man.empty() )
+			return carry;
+
+		Int<exp+1> scientific_exp( new_exp );
