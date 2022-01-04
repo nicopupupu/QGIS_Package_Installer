@@ -4900,3 +4900,352 @@ public:
 		it sets the pointer to the new first character after parsed value
 
 		'value_read' - if the pointer is provided that means the value_read will be true
+		only when a value has been actually read, there can be situation where only such
+		a string '-' or '+' will be parsed -- 'after_source' will be different from 'source' but
+		no value has been read (there are no digits)
+		on other words if 'value_read' is true -- there is at least one digit in the string
+	*/
+	uint FromString(const char * source, uint base = 10, const char ** after_source = 0, bool * value_read = 0)
+	{
+		Conv conv;
+		conv.base = base;
+
+		return FromStringBase(source, conv, after_source, value_read);
+	}
+
+
+	/*!
+		a method for converting a string into its value
+	*/
+	uint FromString(const char * source, const Conv & conv, const char ** after_source = 0, bool * value_read = 0)
+	{
+		return FromStringBase(source, conv, after_source, value_read);
+	}
+
+
+	/*!
+		a method for converting a string into its value		
+	*/
+	uint FromString(const std::string & string, uint base = 10, const char ** after_source = 0, bool * value_read = 0)
+	{
+		return FromString(string.c_str(), base, after_source, value_read);
+	}
+
+
+	/*!
+		a method for converting a string into its value		
+	*/
+	uint FromString(const std::string & string, const Conv & conv, const char ** after_source = 0, bool * value_read = 0)
+	{
+		return FromString(string.c_str(), conv, after_source, value_read);
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		a method for converting a string into its value
+	*/
+	uint FromString(const wchar_t * source, uint base = 10, const wchar_t ** after_source = 0, bool * value_read = 0)
+	{
+		Conv conv;
+		conv.base = base;
+
+		return FromStringBase(source, conv, after_source, value_read);
+	}
+
+
+	/*!
+		a method for converting a string into its value
+	*/
+	uint FromString(const wchar_t * source, const Conv & conv, const wchar_t ** after_source = 0, bool * value_read = 0)
+	{
+		return FromStringBase(source, conv, after_source, value_read);
+	}
+
+
+	/*!
+		a method for converting a string into its value		
+	*/
+	uint FromString(const std::wstring & string, uint base = 10, const wchar_t ** after_source = 0, bool * value_read = 0)
+	{
+		return FromString(string.c_str(), base, after_source, value_read);
+	}
+
+
+	/*!
+		a method for converting a string into its value		
+	*/
+	uint FromString(const std::wstring & string, const Conv & conv, const wchar_t ** after_source = 0, bool * value_read = 0)
+	{
+		return FromString(string.c_str(), conv, after_source, value_read);
+	}
+
+#endif
+
+
+private:
+
+
+	/*!
+		an auxiliary method for converting from a string
+	*/
+	template<class char_type>
+	uint FromStringBase(const char_type * source, const Conv & conv, const char_type ** after_source = 0, bool * value_read = 0)
+	{
+	bool is_sign;
+	bool value_read_temp = false;
+
+		if( conv.base<2 || conv.base>16 )
+		{
+			SetNan();
+
+			if( after_source )
+				*after_source = source;
+
+			if( value_read )
+				*value_read = value_read_temp;
+
+			return 1;
+		}
+
+		SetZero();
+		FromString_TestSign( source, is_sign );
+
+		uint c = FromString_ReadPartBeforeComma( source, conv, value_read_temp );
+
+		if( FromString_TestCommaOperator(source, conv) )
+			c += FromString_ReadPartAfterComma( source, conv, value_read_temp );
+
+		if( value_read_temp && conv.base == 10 )
+			c += FromString_ReadScientificIfExists( source );
+
+		if( is_sign && !IsZero() )
+			ChangeSign();
+
+		if( after_source )
+			*after_source = source;
+
+		if( value_read )
+			*value_read = value_read_temp;
+
+	return CheckCarry(c);
+	}
+
+
+	/*!
+		we're testing whether the value is with the sign
+
+		(this method is used from 'FromString_ReadPartScientific' too)
+	*/
+	template<class char_type>
+	void FromString_TestSign( const char_type * & source, bool & is_sign )
+	{
+		Misc::SkipWhiteCharacters(source);
+
+		is_sign = false;
+
+		if( *source == '-' )
+		{
+			is_sign = true;
+			++source;
+		}
+		else
+		if( *source == '+' )
+		{
+			++source;
+		}
+	}
+
+
+	/*!
+		we're testing whether there's a comma operator
+	*/
+	template<class char_type>
+	bool FromString_TestCommaOperator(const char_type * & source, const Conv & conv)
+	{
+		if( (*source == static_cast<char_type>(conv.comma)) || 
+			(*source == static_cast<char_type>(conv.comma2) && conv.comma2 != 0 ) )
+		{
+			++source;
+
+		return true;
+		}
+
+	return false;
+	}
+
+
+	/*!
+		this method reads the first part of a string
+		(before the comma operator)
+	*/
+	template<class char_type>
+	uint FromString_ReadPartBeforeComma( const char_type * & source, const Conv & conv, bool & value_read )
+	{
+		sint character;
+		Big<exp, man> temp;
+		Big<exp, man> base_( conv.base );
+		
+		Misc::SkipWhiteCharacters( source );
+
+		for( ; true ; ++source )
+		{
+			if( conv.group!=0 && *source==static_cast<char>(conv.group) )
+				continue;
+
+			character = Misc::CharToDigit(*source, conv.base);
+
+			if( character == -1 )
+				break;
+
+			value_read = true;
+			temp = character;
+
+			if( Mul(base_) )
+				return 1;
+
+			if( Add(temp) )
+				return 1;
+		}
+
+	return 0;
+	}
+
+
+	/*!
+		this method reads the second part of a string
+		(after the comma operator)
+	*/
+	template<class char_type>
+	uint FromString_ReadPartAfterComma( const char_type * & source, const Conv & conv, bool & value_read )
+	{
+	sint character;
+	uint c = 0, power = 0;
+	UInt<1> power_;
+	Big<exp, man> sum, base_(conv.base);
+
+		// we don't remove any white characters here
+		sum.SetZero();
+
+		for( ; sum.exponent.IsSign() || sum.exponent.IsZero() ; ++source )
+		{
+			if( conv.group!=0 && *source==static_cast<char>(conv.group) )
+				continue;
+			
+			character = Misc::CharToDigit(*source, conv.base);
+
+			if( character == -1 )
+				break;
+
+			value_read = true;
+
+			// there actually shouldn't be a carry here
+			c += sum.Mul(base_);
+			c += sum.Add(character);
+			power += 1;
+
+			if( power == 0 )
+				c += 1;
+		}
+
+		// we could break the parsing somewhere in the middle of the string,
+		// but the result (value) still can be good
+		// we should set a correct value of 'source' now
+		for( ; Misc::CharToDigit(*source, conv.base) != -1 ; ++source );
+
+		power_ = power;
+		c += base_.Pow(power_);
+		c += sum.Div(base_);
+		c += Add(sum);
+
+	return (c==0)? 0 : 1;
+	}
+
+
+	/*!
+		this method checks whether there is a scientific part: [e|E][-|+]value
+
+		it is called when the base is 10 and some digits were read before
+	*/
+	template<class char_type>
+	uint FromString_ReadScientificIfExists(const char_type * & source)
+	{
+	uint c = 0;
+
+		bool scientific_read = false;
+		const char_type * before_scientific = source;
+
+		if( FromString_TestScientific(source) )
+			c += FromString_ReadPartScientific( source, scientific_read );
+
+		if( !scientific_read )
+			source = before_scientific;
+
+	return (c==0)? 0 : 1;
+	}
+
+
+
+	/*!
+		we're testing whether is there the character 'e'
+
+		this character is only allowed when we're using the base equals 10
+	*/
+	template<class char_type>
+	bool FromString_TestScientific(const char_type * & source)
+	{
+		Misc::SkipWhiteCharacters(source);
+
+		if( *source=='e' || *source=='E' )
+		{
+			++source;
+
+		return true;
+		}
+
+	return false;
+	}
+
+
+	/*!
+		this method reads the exponent (after 'e' character) when there's a scientific
+		format of value and only when we're using the base equals 10
+	*/
+	template<class char_type>
+	uint FromString_ReadPartScientific( const char_type * & source, bool & scientific_read )
+	{
+	uint c = 0;
+	Big<exp, man> new_exponent, temp;
+	bool was_sign = false;
+
+		FromString_TestSign( source, was_sign );
+		c += FromString_ReadPartScientific_ReadExponent( source, new_exponent, scientific_read );
+
+		if( scientific_read )
+		{
+			if( was_sign )
+				new_exponent.ChangeSign();
+
+			temp = 10;
+			c += temp.Pow( new_exponent );
+			c += Mul(temp);
+		}
+
+	return (c==0)? 0 : 1;
+	}
+
+
+	/*!
+		this method reads the value of the extra exponent when scientific format is used
+		(only when base == 10)
+	*/
+	template<class char_type>
+	uint FromString_ReadPartScientific_ReadExponent( const char_type * & source, Big<exp, man> & new_exponent, bool & scientific_read )
+	{
+	sint character;
+	Big<exp, man> base, temp;
+
+		Misc::SkipWhiteCharacters(source);
+
+		new_exponent.SetZero();
