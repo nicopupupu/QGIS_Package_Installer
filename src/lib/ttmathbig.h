@@ -5587,3 +5587,367 @@ public:
 	Big<exp,man> operator*(const Big<exp,man> & ss2) const
 	{
 	Big<exp,man> temp(*this);
+
+		temp.Mul(ss2);
+
+	return temp;
+	}
+
+
+	Big<exp,man> & operator*=(const Big<exp,man> & ss2)
+	{
+		Mul(ss2);
+
+	return *this;
+	}
+
+
+	Big<exp,man> operator/(const Big<exp,man> & ss2) const
+	{
+	Big<exp,man> temp(*this);
+
+		temp.Div(ss2);
+
+	return temp;
+	}
+
+
+	Big<exp,man> & operator/=(const Big<exp,man> & ss2)
+	{
+		Div(ss2);
+
+	return *this;
+	}
+
+
+	/*!
+		Prefix operator e.g ++variable
+	*/
+	Big<exp,man> & operator++()
+	{
+		AddOne();
+
+	return *this;
+	}
+
+
+	/*!
+		Postfix operator e.g variable++
+	*/
+	Big<exp,man> operator++(int)
+	{
+	Big<exp,man> temp( *this );
+
+		AddOne();
+
+	return temp;
+	}
+
+
+	Big<exp,man> & operator--()
+	{
+		SubOne();
+
+	return *this;
+	}
+
+
+	Big<exp,man> operator--(int)
+	{
+	Big<exp,man> temp( *this );
+
+		SubOne();
+
+	return temp;
+	}
+
+
+
+	/*!
+	*
+	*	bitwise operators
+	*   (we do not define bitwise not)
+	*/
+
+
+	Big<exp,man> operator&(const Big<exp,man> & p2) const
+	{
+		Big<exp,man> temp( *this );
+
+		temp.BitAnd(p2);
+
+	return temp;
+	}
+
+
+	Big<exp,man> & operator&=(const Big<exp,man> & p2)
+	{
+		BitAnd(p2);
+
+	return *this;
+	}
+
+
+	Big<exp,man> operator|(const Big<exp,man> & p2) const
+	{
+		Big<exp,man> temp( *this );
+
+		temp.BitOr(p2);
+
+	return temp;
+	}
+
+
+	Big<exp,man> & operator|=(const Big<exp,man> & p2)
+	{
+		BitOr(p2);
+
+	return *this;
+	}
+
+
+	Big<exp,man> operator^(const Big<exp,man> & p2) const
+	{
+		Big<exp,man> temp( *this );
+
+		temp.BitXor(p2);
+
+	return temp;
+	}
+
+
+	Big<exp,man> & operator^=(const Big<exp,man> & p2)
+	{
+		BitXor(p2);
+
+	return *this;
+	}
+
+
+
+
+
+
+	/*!
+		this method makes an integer value by skipping any fractions
+
+		for example:
+			10.7 will be 10
+			12.1  -- 12
+			-20.2 -- 20
+			-20.9 -- 20
+			-0.7  -- 0
+			0.8   -- 0
+	*/
+	void SkipFraction()
+	{
+		if( IsNan() || IsZero() )
+			return;
+
+		if( !exponent.IsSign() )
+			// exponent >=0 -- the value don't have any fractions
+			return;
+
+		if( exponent <= -sint(man*TTMATH_BITS_PER_UINT) )
+		{
+			// the value is from (-1,1), we return zero
+			SetZero();
+			return;
+		}
+
+		// exponent is in range (-man*TTMATH_BITS_PER_UINT, 0)
+		sint e = exponent.ToInt();
+	
+		mantissa.ClearFirstBits( -e );
+		
+		// we don't have to standardize 'Standardizing()' the value because
+		// there's at least one bit in the mantissa
+		// (the highest bit which we didn't touch)
+	}
+
+
+	/*!
+		this method remains only a fraction from the value
+
+		for example:
+			30.56 will be 0.56
+			-12.67 -- -0.67
+	*/
+	void RemainFraction()
+	{
+		if( IsNan() || IsZero() )
+			return;
+
+		if( !exponent.IsSign() )
+		{
+			// exponent >= 0 -- the value doesn't have any fractions
+			// we return zero
+			SetZero();
+			return;
+		}
+
+		if( exponent <= -sint(man*TTMATH_BITS_PER_UINT) )
+		{
+			// the value is from (-1,1)
+			// we don't make anything with the value
+			return;
+		}
+
+		// e will be from (-man*TTMATH_BITS_PER_UINT, 0)
+		sint e = exponent.ToInt();
+
+		sint how_many_bits_leave = sint(man*TTMATH_BITS_PER_UINT) + e; // there'll be a subtraction -- e is negative
+		mantissa.Rcl( how_many_bits_leave, 0);
+
+		// there'll not be a carry because the exponent is too small
+		exponent.Sub( how_many_bits_leave );
+
+		// we must call Standardizing() here
+		Standardizing();
+	}
+
+
+
+	/*!
+		this method returns true if the value is integer
+		(there is no a fraction)
+
+		(we don't check nan)
+	*/
+	bool IsInteger() const
+	{
+		if( IsZero() )
+			return true;
+
+		if( !exponent.IsSign() )
+			// exponent >=0 -- the value don't have any fractions
+			return true;
+
+		if( exponent <= -sint(man*TTMATH_BITS_PER_UINT) )
+			// the value is from (-1,1)
+			return false;
+
+		// exponent is in range (-man*TTMATH_BITS_PER_UINT, 0)
+		sint e = exponent.ToInt();
+		e = -e; // e means how many bits we must check
+
+		uint len  = e / TTMATH_BITS_PER_UINT;
+		uint rest = e % TTMATH_BITS_PER_UINT;
+		uint i    = 0;
+
+		for( ; i<len ; ++i )
+			if( mantissa.table[i] != 0 )
+				return false;
+
+		if( rest > 0 )
+		{
+			uint rest_mask = TTMATH_UINT_MAX_VALUE >> (TTMATH_BITS_PER_UINT - rest);
+			if( (mantissa.table[i] & rest_mask) != 0 )
+				return false;
+		}
+
+	return true;
+	}
+
+
+	/*!
+		this method rounds to the nearest integer value
+		(it returns a carry if it was)
+
+		for example:
+			2.3 = 2
+			2.8 = 3
+
+			-2.3 = -2
+			-2.8 = 3
+	*/
+	uint Round()
+	{
+	Big<exp,man> half;
+	uint c;
+
+		if( IsNan() )
+			return 1;
+
+		if( IsZero() )
+			return 0;
+
+		half.Set05();
+
+		if( IsSign() )
+		{
+			// 'this' is < 0
+			c = Sub( half );
+		}
+		else
+		{
+			// 'this' is > 0
+			c = Add( half );
+		}
+
+		SkipFraction();
+
+	return CheckCarry(c);
+	}
+
+	
+
+	/*!
+	*
+	*	input/output operators for standard streams
+	*
+	*/
+
+private:
+
+	/*!
+		an auxiliary method for outputing to standard streams
+	*/
+	template<class ostream_type, class string_type>
+	static ostream_type & OutputToStream(ostream_type & s, const Big<exp,man> & l)
+	{
+	string_type ss;
+
+		l.ToString(ss);
+		s << ss;
+
+	return s;
+	}
+
+
+public:
+
+
+	/*!
+		output to standard streams
+	*/
+	friend std::ostream & operator<<(std::ostream & s,  const Big<exp,man> & l)
+	{
+		return OutputToStream<std::ostream, std::string>(s, l);
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		output to standard streams
+	*/
+	friend std::wostream & operator<<(std::wostream & s,  const Big<exp,man> & l)
+	{
+		return OutputToStream<std::wostream, std::wstring>(s, l);
+	}
+
+#endif
+
+
+
+private:
+
+	/*!
+		an auxiliary method for converting from a string
+	*/
+	template<class istream_type, class string_type, class char_type>
+	static istream_type & InputFromStream(istream_type & s, Big<exp,man> & l)
+	{
+	string_type ss;
+	
