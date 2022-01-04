@@ -5249,3 +5249,341 @@ private:
 		Misc::SkipWhiteCharacters(source);
 
 		new_exponent.SetZero();
+		base = 10;
+
+		for( ; (character=Misc::CharToDigit(*source, 10)) != -1 ; ++source )
+		{
+			scientific_read = true;
+
+			temp = character;
+
+			if( new_exponent.Mul(base) )
+				return 1;
+
+			if( new_exponent.Add(temp) )
+				return 1;
+		}
+
+	return 0;
+	}
+
+
+public:
+
+
+	/*!
+		a constructor for converting a string into this class
+	*/
+	Big(const char * string)
+	{
+		FromString( string );
+	}
+
+
+	/*!
+		a constructor for converting a string into this class
+	*/
+	Big(const std::string & string)
+	{
+		FromString( string.c_str() );
+	}
+
+
+	/*!
+		an operator= for converting a string into its value
+	*/
+	Big<exp, man> & operator=(const char * string)
+	{
+		FromString( string );
+
+	return *this;
+	}
+
+
+	/*!
+		an operator= for converting a string into its value
+	*/
+	Big<exp, man> & operator=(const std::string & string)
+	{
+		FromString( string.c_str() );
+
+	return *this;
+	}
+
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		a constructor for converting a string into this class
+	*/
+	Big(const wchar_t * string)
+	{
+		FromString( string );
+	}
+
+
+	/*!
+		a constructor for converting a string into this class
+	*/
+	Big(const std::wstring & string)
+	{
+		FromString( string.c_str() );
+	}
+
+
+	/*!
+		an operator= for converting a string into its value
+	*/
+	Big<exp, man> & operator=(const wchar_t * string)
+	{
+		FromString( string );
+
+	return *this;
+	}
+
+
+	/*!
+		an operator= for converting a string into its value
+	*/
+	Big<exp, man> & operator=(const std::wstring & string)
+	{
+		FromString( string.c_str() );
+
+	return *this;
+	}
+
+
+#endif
+
+
+
+	/*!
+	*
+	*	methods for comparing
+	*
+	*/
+
+
+	/*!
+		this method performs the formula 'abs(this) < abs(ss2)'
+		and returns the result
+
+		(in other words it treats 'this' and 'ss2' as values without a sign)
+		we don't check the NaN flag
+	*/
+	bool SmallerWithoutSignThan(const Big<exp,man> & ss2) const
+	{
+		if( IsZero() )
+		{
+			if( ss2.IsZero() )
+				// we've got two zeroes
+				return false;
+			else
+				// this==0 and ss2!=0
+				return true;
+		}
+
+		if( ss2.IsZero() )
+			// this!=0 and ss2==0
+			return false;
+
+		// we're using the fact that all bits in mantissa are pushed
+		// into the left side -- Standardizing()
+		if( exponent == ss2.exponent )
+			return mantissa < ss2.mantissa;
+
+	return exponent < ss2.exponent;
+	}
+
+
+	/*!
+		this method performs the formula 'abs(this) > abs(ss2)'
+		and returns the result
+
+		(in other words it treats 'this' and 'ss2' as values without a sign)
+		we don't check the NaN flag
+	*/
+	bool GreaterWithoutSignThan(const Big<exp,man> & ss2) const
+	{
+		if( IsZero() )
+		{
+			if( ss2.IsZero() )
+				// we've got two zeroes
+				return false;
+			else
+				// this==0 and ss2!=0
+				return false;
+		}
+
+		if( ss2.IsZero() )
+			// this!=0 and ss2==0
+			return true;
+
+		// we're using the fact that all bits in mantissa are pushed
+		// into the left side -- Standardizing()
+		if( exponent == ss2.exponent )
+			return mantissa > ss2.mantissa;
+
+	return exponent > ss2.exponent;
+	}
+
+
+	/*!
+		this method performs the formula 'abs(this) == abs(ss2)'
+		and returns the result
+
+		(in other words it treats 'this' and 'ss2' as values without a sign)
+		we don't check the NaN flag
+	*/
+	bool EqualWithoutSign(const Big<exp,man> & ss2) const
+	{
+		if( IsZero() )
+		{
+			if( ss2.IsZero() )
+				// we've got two zeroes
+				return true;
+			else
+				// this==0 and ss2!=0
+				return false;
+		}
+
+		if( ss2.IsZero() )
+			// this!=0 and ss2==0
+			return false;
+
+		if( exponent==ss2.exponent && mantissa==ss2.mantissa )
+			return true;
+
+	return false;
+	}
+
+
+	bool operator<(const Big<exp,man> & ss2) const
+	{
+		if( IsSign() && !ss2.IsSign() )
+			// this<0 and ss2>=0
+			return true;
+
+		if( !IsSign() && ss2.IsSign() )
+			// this>=0 and ss2<0
+			return false;
+
+		// both signs are the same
+
+		if( IsSign() )
+			return ss2.SmallerWithoutSignThan( *this );
+
+	return SmallerWithoutSignThan( ss2 );
+	}
+
+
+	bool operator==(const Big<exp,man> & ss2) const
+	{
+		if( IsSign() != ss2.IsSign() )
+			return false;
+
+	return EqualWithoutSign( ss2 );
+	}
+
+
+	bool operator>(const Big<exp,man> & ss2) const
+	{
+		if( IsSign() && !ss2.IsSign() )
+			// this<0 and ss2>=0
+			return false;
+
+		if( !IsSign() && ss2.IsSign() )
+			// this>=0 and ss2<0
+			return true;
+
+		// both signs are the same
+
+		if( IsSign() )
+			return ss2.GreaterWithoutSignThan( *this );
+
+	return GreaterWithoutSignThan( ss2 );
+	}
+
+
+	bool operator>=(const Big<exp,man> & ss2) const
+	{
+		return !operator<( ss2 );
+	}
+
+
+	bool operator<=(const Big<exp,man> & ss2) const
+	{
+		return !operator>( ss2 );
+	}
+
+
+	bool operator!=(const Big<exp,man> & ss2) const
+	{
+		return !operator==(ss2);
+	}
+
+
+
+
+
+	/*!
+	*
+	*	standard mathematical operators 
+	*
+	*/
+
+
+	/*!
+		an operator for changing the sign
+
+		this method is not changing 'this' but the changed value is returned
+	*/
+	Big<exp,man> operator-() const
+	{
+		Big<exp,man> temp(*this);
+
+		temp.ChangeSign();
+
+	return temp;
+	}
+
+
+	Big<exp,man> operator-(const Big<exp,man> & ss2) const
+	{
+	Big<exp,man> temp(*this);
+
+		temp.Sub(ss2);
+
+	return temp;
+	}
+
+	Big<exp,man> & operator-=(const Big<exp,man> & ss2)
+	{
+		Sub(ss2);
+
+	return *this;
+	}
+
+
+	Big<exp,man> operator+(const Big<exp,man> & ss2) const
+	{
+	Big<exp,man> temp(*this);
+
+		temp.Add(ss2);
+
+	return temp;
+	}
+
+
+	Big<exp,man> & operator+=(const Big<exp,man> & ss2)
+	{
+		Add(ss2);
+
+	return *this;
+	}
+
+
+	Big<exp,man> operator*(const Big<exp,man> & ss2) const
+	{
+	Big<exp,man> temp(*this);
