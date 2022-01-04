@@ -5951,3 +5951,96 @@ private:
 	{
 	string_type ss;
 	
+	// char or wchar_t for operator>>
+	char_type z, old_z;
+	bool was_comma = false;
+	bool was_e     = false;
+	
+
+		// operator>> omits white characters if they're set for ommiting
+		s >> z;
+
+		if( z=='-' || z=='+' )
+		{
+			ss += z;
+			s >> z; // we're reading a next character (white characters can be ommited)
+		}
+		
+		old_z = 0;
+
+		// we're reading only digits (base=10) and only one comma operator
+		for( ; s.good() ; z=static_cast<char_type>(s.get()) )
+		{
+			if( z=='.' ||  z==',' )
+			{
+				if( was_comma || was_e )
+					// second comma operator or comma operator after 'e' character
+					break;
+
+				was_comma = true;
+			}
+			else
+			if( z == 'e' || z == 'E' )
+			{
+				if( was_e )
+					// second 'e' character
+					break;
+
+				was_e = true;
+			}
+			else
+			if( z == '+' || z == '-' )
+			{
+				if( old_z != 'e' && old_z != 'E' )
+					// '+' or '-' is allowed only after 'e' character
+					break;
+			}
+			else
+			if( Misc::CharToDigit(z, 10) < 0 )
+				break;
+
+
+			ss   += z;
+			old_z = z;
+		}
+
+		// we're leaving the last read character
+		// (it's not belonging to the value)
+		s.unget();
+
+		l.FromString( ss );
+
+	return s;
+	}
+
+
+
+public:
+
+	/*!
+		input from standard streams
+	*/
+	friend std::istream & operator>>(std::istream & s, Big<exp,man> & l)
+	{
+		return InputFromStream<std::istream, std::string, char>(s, l);
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		input from standard streams
+	*/
+	friend std::wistream & operator>>(std::wistream & s, Big<exp,man> & l)
+	{
+		return InputFromStream<std::wistream, std::wstring, wchar_t>(s, l);
+	}
+
+#endif
+
+};
+
+
+} // namespace
+
+#endif
