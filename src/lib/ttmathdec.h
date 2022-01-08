@@ -250,3 +250,171 @@ private:
 	}
 
 #else
+
+	/*!
+	*/
+	void SetMultipler(UInt<value_size> & result)
+	{
+		// this guardian is initialized before the program runs (static POD type)
+		volatile static sig_atomic_t guardian = 0;
+		static UInt<value_size> * pmultipler;
+	
+		// double-checked locking
+		if( guardian == 0 )
+		{
+			ThreadLock thread_lock;
+
+			// locking
+			if( thread_lock.Lock() )
+			{
+				static UInt<value_size> multipler;
+
+				if( guardian == 0 )
+				{
+					pmultipler = &multipler;
+					multipler = 10;
+					multipler.Pow(dec_digits);
+					guardian = 1;
+				}
+			}
+			else
+			{
+				// there was a problem with locking, we store the result directly in 'result' object
+				result = 10;
+				result.Pow(dec_digits);
+				
+			return;
+			}
+
+			// automatically unlocking
+		}
+
+		result = *pmultipler;
+	}
+
+#endif
+
+
+
+	/*!
+		an auxiliary method for converting from a string
+	*/
+	template<class char_type>
+	uint FromStringBase(const char_type * s, const char_type ** after_source = 0, bool * value_read = 0)
+	{
+		UInt<value_size> multipler;
+		const char_type * after;
+		uint c = 0;
+		info = 0;
+
+		Misc::SkipWhiteCharacters(s);
+
+		if( *s == '-' )
+		{
+			s += 1;
+			SetSign();
+		}
+		else
+		if( *s == '+' )
+		{
+			s += 1;
+		}
+
+		c += value.FromString(s, 10, &after, value_read);
+
+		if( after_source )
+			*after_source = after;
+
+		SetMultipler(multipler);
+		c += value.Mul(multipler);
+
+		if( *after == '.' )
+			c += FromStringBaseAfterComma(after+1, after_source);
+
+		if( c )
+			SetInfoBit(TTMATH_DEC_NAN);
+
+	return (c==0)? 0 : 1;
+	}
+
+
+	template<class char_type>
+	uint FromStringBaseAfterComma(const char_type * s, const char_type ** after_source = 0, bool * value_read = 0)
+	{
+		UInt<value_size> temp;
+		UInt<value_size> multipler;
+		sint z;
+		uint c = 0;
+		size_t i = dec_digits;
+
+		SetMultipler(multipler);
+
+		for( ; i>0 && (z=Misc::CharToDigit(*s, 10)) != -1 ; --i, ++s )
+		{
+			multipler.DivInt(10);
+			temp.SetZero();
+
+			if( value_read )
+				*value_read = true;
+
+			if( c == 0 )
+			{
+				temp.table[0] = z;
+				c += temp.Mul(multipler);
+				c += value.Add(temp);
+			}
+		}
+
+		if( i == 0 && (z=Misc::CharToDigit(*s, 10)) != -1 && z >= 5 )
+			c += value.AddOne();
+
+		if( after_source )
+		{
+			while( (z=Misc::CharToDigit(*s, 10)) != -1 )
+				s += 1;
+
+			*after_source = s;
+		}
+
+	return c;
+	}
+
+
+
+	template<class string_type>
+	void ToStringBase(string_type & result) const
+	{
+		if( IsNan() )
+		{
+			result = "NaN";
+			return;
+		}
+
+		value.ToStringBase(result, 10, IsSign());
+
+		if( dec_digits > 0 )
+		{
+			size_t size = result.size();
+
+			if( IsSign() && size > 0 )
+				size -= 1;
+
+			if( dec_digits >= size )
+			{
+				size_t zeroes = dec_digits - size + 1;
+				size_t start  = IsSign() ? 1 : 0;
+				result.insert(start, zeroes, '0');
+			}
+
+			result.insert(result.end() - dec_digits, '.');
+		}
+	}
+
+
+
+};
+
+
+} // namespace
+
+#endif
