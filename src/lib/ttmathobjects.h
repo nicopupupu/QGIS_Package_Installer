@@ -110,3 +110,370 @@ public:
 
 	return false;
 	}
+
+
+	/*!
+		this method returns true if the name can be as a name of an object
+	*/
+	template<class string_type>
+	static bool IsNameCorrect(const string_type & name)
+	{
+		if( name.empty() )
+			return false;
+
+		if( !CorrectCharacter(name[0], false) )
+			return false;
+
+		typename string_type::const_iterator i = name.begin();
+
+		for(++i ; i!=name.end() ; ++i)
+			if( !CorrectCharacter(*i, true) )
+				return false;
+		
+	return true;
+	}
+
+
+	/*!
+		this method returns true if such an object is defined (name exists)
+	*/
+	bool IsDefined(const std::string & name)
+	{
+		Iterator i = table.find(name);
+
+		if( i != table.end() )
+			// we have this object in our table
+			return true;
+
+	return false;
+	}
+
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		this method returns true if such an object is defined (name exists)
+	*/
+	bool IsDefined(const std::wstring & name)
+	{
+		// we should check whether the name (in wide characters) are correct
+		// before calling AssignString() function
+		if( !IsNameCorrect(name) )
+			return false;
+
+		Misc::AssignString(str_tmp1, name);
+
+	return IsDefined(str_tmp1);
+	}
+
+#endif
+
+
+	/*!
+		this method adds one object (variable of function) into the table
+	*/
+	ErrorCode Add(const std::string & name, const std::string & value, int param = 0)
+	{
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		Iterator i = table.find(name);
+
+		if( i != table.end() )
+			// we have this object in our table
+			return err_object_exists;
+
+		table.insert( std::make_pair(name, Item(value, param)) );
+
+	return err_ok;
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		this method adds one object (variable of function) into the table
+	*/
+	ErrorCode Add(const std::wstring & name, const std::wstring & value, int param = 0)
+	{
+		// we should check whether the name (in wide characters) are correct
+		// before calling AssignString() function
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		Misc::AssignString(str_tmp1, name);
+		Misc::AssignString(str_tmp2, value);
+		
+	return Add(str_tmp1, str_tmp2, param);
+	}
+
+#endif
+
+
+	/*!
+		this method returns 'true' if the table is empty
+	*/
+	bool Empty() const
+	{
+		return table.empty();
+	}
+
+
+	/*!
+		this method clears the table
+	*/
+	void Clear()
+	{
+		return table.clear();
+	}
+
+
+	/*!
+		this method returns 'const_iterator' on the first item on the table
+	*/
+	CIterator Begin() const
+	{
+		return table.begin();
+	}
+
+
+	/*!
+		this method returns 'const_iterator' pointing at the space after last item
+		(returns table.end())
+	*/
+	CIterator End() const
+	{
+		return table.end();
+	}
+
+
+	/*!
+		this method changes the value and the number of parameters for a specific object
+	*/
+	ErrorCode EditValue(const std::string & name, const std::string & value, int param = 0)
+	{
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		Iterator i = table.find(name);
+
+		if( i == table.end() )
+			return err_unknown_object;
+	
+		i->second.value = value;
+		i->second.param = param;
+
+	return err_ok;
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+
+	/*!
+		this method changes the value and the number of parameters for a specific object
+	*/
+	ErrorCode EditValue(const std::wstring & name, const std::wstring & value, int param = 0)
+	{
+		// we should check whether the name (in wide characters) are correct
+		// before calling AssignString() function
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		Misc::AssignString(str_tmp1, name);
+		Misc::AssignString(str_tmp2, value);
+		
+	return EditValue(str_tmp1, str_tmp2, param);
+	}
+
+#endif
+
+
+	/*!
+		this method changes the name of a specific object
+	*/
+	ErrorCode EditName(const std::string & old_name, const std::string & new_name)
+	{
+		if( !IsNameCorrect(old_name) || !IsNameCorrect(new_name) )
+			return err_incorrect_name;
+
+		Iterator old_i = table.find(old_name);
+		if( old_i == table.end() )
+			return err_unknown_object;
+		
+		if( old_name == new_name )
+			// the new name is the same as the old one
+			// we treat it as a normal situation
+			return err_ok;
+
+		ErrorCode err = Add(new_name, old_i->second.value, old_i->second.param);
+		
+		if( err == err_ok ) 
+		{
+			old_i = table.find(old_name);
+			TTMATH_ASSERT( old_i != table.end() )
+
+			table.erase(old_i);
+		}
+
+	return err;
+	}
+
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+
+	/*!
+		this method changes the name of a specific object
+	*/
+	ErrorCode EditName(const std::wstring & old_name, const std::wstring & new_name)
+	{
+		// we should check whether the name (in wide characters) are correct
+		// before calling AssignString() function
+		if( !IsNameCorrect(old_name) || !IsNameCorrect(new_name) )
+			return err_incorrect_name;
+
+		Misc::AssignString(str_tmp1, old_name);
+		Misc::AssignString(str_tmp2, new_name);
+
+	return EditName(str_tmp1, str_tmp2);
+	}
+
+#endif
+
+
+	/*!
+		this method deletes an object
+	*/
+	ErrorCode Delete(const std::string & name)
+	{
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		Iterator i = table.find(name);
+
+		if( i == table.end() )
+			return err_unknown_object;
+
+		table.erase( i );
+
+	return err_ok;
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+
+	/*!
+		this method deletes an object
+	*/
+	ErrorCode Delete(const std::wstring & name)
+	{
+		// we should check whether the name (in wide characters) are correct
+		// before calling AssignString() function
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		Misc::AssignString(str_tmp1, name);
+
+	return Delete(str_tmp1);
+	}	
+		
+#endif
+
+
+	/*!
+		this method gets the value of a specific object
+	*/
+	ErrorCode GetValue(const std::string & name, std::string & value) const
+	{
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		CIterator i = table.find(name);
+
+		if( i == table.end() )
+		{
+			value.clear();
+			return err_unknown_object;
+		}
+
+		value = i->second.value;
+
+	return err_ok;
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		this method gets the value of a specific object
+	*/
+	ErrorCode GetValue(const std::wstring & name, std::wstring & value)
+	{
+		// we should check whether the name (in wide characters) are correct
+		// before calling AssignString() function
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		Misc::AssignString(str_tmp1, name);
+		ErrorCode err = GetValue(str_tmp1, str_tmp2);
+		Misc::AssignString(value, str_tmp2);
+
+	return err;
+	}
+
+#endif
+
+
+	/*!
+		this method gets the value of a specific object
+		(this version is used for not copying the whole string)
+	*/
+	ErrorCode GetValue(const std::string & name, const char ** value) const
+	{
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		CIterator i = table.find(name);
+
+		if( i == table.end() )
+		{
+			*value = 0;
+			return err_unknown_object;
+		}
+
+		*value = i->second.value.c_str();
+
+	return err_ok;
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		this method gets the value of a specific object
+		(this version is used for not copying the whole string)
+	*/
+	ErrorCode GetValue(const std::wstring & name, const char ** value)
+	{
+		// we should check whether the name (in wide characters) are correct
+		// before calling AssignString() function
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		Misc::AssignString(str_tmp1, name);
+
+	return GetValue(str_tmp1, value);
+	}
+
+#endif
+
+
+	/*!
+		this method gets the value and the number of parameters
+		of a specific object
+	*/
+	ErrorCode GetValueAndParam(const std::string & name, std::string & value, int * param) const
