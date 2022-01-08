@@ -567,3 +567,348 @@ public:
 
 
 private:
+
+
+	/*!
+		power this = this ^ pow
+		this can be negative
+		pow is >= 0
+	*/
+	uint Pow2(const Int<value_size> & pow)
+	{
+		bool was_sign = IsSign();
+		uint c = 0;
+
+		if( was_sign )
+			c += Abs();
+
+		uint c_temp = UInt<value_size>::Pow(pow);
+		if( c_temp > 0 )
+			return c_temp; // c_temp can be: 0, 1 or 2
+		
+		if( was_sign && (pow.table[0] & 1) == 1 )
+			// negative value to the power of odd number is negative
+			c += ChangeSign();
+
+	return (c==0)? 0 : 1;
+	}
+
+
+public:
+
+
+	/*!
+		power this = this ^ pow
+
+		return values:
+		0 - ok
+		1 - carry
+		2 - incorrect arguments 0^0 or 0^(-something)
+	*/
+	uint Pow(Int<value_size> pow)
+	{
+		if( !pow.IsSign() )
+			return Pow2(pow);
+
+		if( UInt<value_size>::IsZero() )
+			// if 'pow' is negative then
+			// 'this' must be different from zero
+			return 2;
+
+		if( pow.ChangeSign() )
+			return 1;
+
+		Int<value_size> t(*this);
+		uint c_temp = t.Pow2(pow);
+		if( c_temp > 0 )
+			return c_temp;
+
+		UInt<value_size>::SetOne();
+		if( Div(t) )
+			return 1;
+
+	return 0;
+	}
+
+
+
+	/*!
+	*
+	*	convertion methods
+	*
+	*/
+private:
+
+
+	/*!
+		an auxiliary method for converting both from UInt and Int
+	*/
+	template<uint argument_size>
+	uint FromUIntOrInt(const UInt<argument_size> & p, bool UInt_type)
+	{
+		uint min_size = (value_size < argument_size)? value_size : argument_size;
+		uint i;
+
+		for(i=0 ; i<min_size ; ++i)
+			UInt<value_size>::table[i] = p.table[i];
+
+
+		if( value_size > argument_size )
+		{	
+			uint fill;
+
+			if( UInt_type )
+				fill = 0;
+			else
+				fill = (p.table[argument_size-1] & TTMATH_UINT_HIGHEST_BIT)?
+														TTMATH_UINT_MAX_VALUE : 0;
+
+			// 'this' is longer than 'p'
+			for( ; i<value_size ; ++i)
+				UInt<value_size>::table[i] = fill;
+		}
+		else
+		{
+			uint test = (UInt<value_size>::table[value_size-1] & TTMATH_UINT_HIGHEST_BIT)?
+																TTMATH_UINT_MAX_VALUE : 0;
+
+			if( UInt_type && test!=0 )
+				return 1;
+
+			for( ; i<argument_size ; ++i)
+				if( p.table[i] != test )
+					return 1;
+		}
+
+	return 0;
+	}
+
+public:
+
+	/*!
+		this method converts an Int<another_size> type into this class
+
+		this operation has mainly sense if the value from p
+		can be held in this type
+
+		it returns a carry if the value 'p' is too big
+	*/
+	template<uint argument_size>
+	uint FromInt(const Int<argument_size> & p)
+	{
+		return FromUIntOrInt(p, false);
+	}
+
+
+	/*!
+		this method converts the sint type into this class
+	*/
+	uint FromInt(sint value)
+	{
+	uint fill = ( value<0 ) ? TTMATH_UINT_MAX_VALUE : 0;
+
+		for(uint i=1 ; i<value_size ; ++i)
+			UInt<value_size>::table[i] = fill;
+
+		UInt<value_size>::table[0] = uint(value);
+	
+		// there'll never be a carry here
+	return 0;
+	}
+
+
+	/*!
+		this method converts UInt<another_size> into this class
+	*/
+	template<uint argument_size>
+	uint FromUInt(const UInt<argument_size> & p)
+	{
+		return FromUIntOrInt(p, true);
+	}
+
+
+	/*!
+		this method converts UInt<another_size> into this class
+	*/
+	template<uint argument_size>
+	uint FromInt(const UInt<argument_size> & p)
+	{
+		return FromUIntOrInt(p, true);
+	}
+
+
+	/*!
+		this method converts the uint type into this class
+	*/
+	uint FromUInt(uint value)
+	{
+		for(uint i=1 ; i<value_size ; ++i)
+			UInt<value_size>::table[i] = 0;
+
+		UInt<value_size>::table[0] = value;
+
+		// there can be a carry here when the size of this value is equal one word
+		// and the 'value' has the highest bit set
+		if( value_size==1 && (value & TTMATH_UINT_HIGHEST_BIT)!=0 )
+			return 1;
+
+	return 0;
+	}
+
+
+	/*!
+		this method converts the uint type into this class
+	*/
+	uint FromInt(uint value)
+	{
+		return FromUInt(value);
+	}
+
+
+	/*!
+		the default assignment operator
+	*/
+	Int<value_size> & operator=(const Int<value_size> & p)
+	{
+		FromInt(p);
+
+	return *this;
+	}
+
+
+	/*!
+		this operator converts an Int<another_size> type to this class
+
+		it doesn't return a carry
+	*/
+	template<uint argument_size>
+	Int<value_size> & operator=(const Int<argument_size> & p)
+	{
+		FromInt(p);
+
+	return *this;
+	}
+
+
+	/*!
+		this method converts the sint type to this class
+	*/
+	Int<value_size> & operator=(sint i)
+	{
+		FromInt(i);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting the uint to this class
+	*/
+	Int(sint i)
+	{
+		FromInt(i);
+	}
+
+
+	/*!
+		a copy constructor
+	*/
+	Int(const Int<value_size> & u)
+	{
+		FromInt(u);
+	}
+
+
+	/*!
+		a constructor for copying from another types
+	*/
+	template<uint argument_size>
+	Int(const Int<argument_size> & u)
+	{
+		// look that 'size' we still set as 'value_size' and not as u.value_size
+		FromInt(u);
+	}
+
+
+
+	/*!
+		this operator converts an UInt<another_size> type to this class
+
+		it doesn't return a carry
+	*/
+	template<uint argument_size>
+	Int<value_size> & operator=(const UInt<argument_size> & p)
+	{
+		FromUInt(p);
+
+	return *this;
+	}
+
+
+	/*!
+		this method converts the Uint type to this class
+	*/
+	Int<value_size> & operator=(uint i)
+	{
+		FromUInt(i);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting the uint to this class
+	*/
+	Int(uint i)
+	{
+		FromUInt(i);
+	}
+
+
+	/*!
+		a constructor for copying from another types
+	*/
+	template<uint argument_size>
+	Int(const UInt<argument_size> & u)
+	{
+		// look that 'size' we still set as 'value_size' and not as u.value_size
+		FromUInt(u);
+	}
+ 
+
+
+#ifdef TTMATH_PLATFORM32
+
+
+	/*!
+		this method converts unsigned 64 bit int type to this class
+		***this method is created only on a 32bit platform***
+	*/
+	uint FromUInt(ulint n)
+	{
+		uint c = UInt<value_size>::FromUInt(n);
+
+		if( c )
+			return 1;
+
+		if( value_size == 1 )
+			return ((UInt<value_size>::table[0] & TTMATH_UINT_HIGHEST_BIT) == 0) ? 0 : 1;
+		
+		if( value_size == 2 )
+			return ((UInt<value_size>::table[1] & TTMATH_UINT_HIGHEST_BIT) == 0) ? 0 : 1;
+
+	return 0;
+	}
+
+
+	/*!
+		this method converts unsigned 64 bit int type to this class
+		***this method is created only on a 32bit platform***
+	*/
+	uint FromInt(ulint n)
+	{
+		return FromUInt(n);
+	}
+
+		
+	/*!
