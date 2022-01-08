@@ -194,3 +194,376 @@ private:
 
 		if( p1_is_sign && p2_is_sign )
 		{	
+			if( ! UInt<value_size>::IsTheHighestBitSet() )
+				return 1;
+		}
+
+	return 0;
+	}
+
+
+public:
+
+	/*!
+		this method adds two value with a sign and returns a carry
+
+		we're using methods from the base class because values are stored with U2
+		we must only make the carry correction
+
+		this = p1(=this) + p2
+
+		when p1>=0 i p2>=0 carry is set when the highest bit of value is set
+		when p1<0  i p2<0  carry is set when the highest bit of value is clear
+		when p1>=0 i p2<0  carry will never be set
+		when p1<0  i p2>=0 carry will never be set
+	*/
+	uint Add(const Int<value_size> & ss2)
+	{
+		bool p1_is_sign = IsSign();
+		bool p2_is_sign = ss2.IsSign();
+
+		UInt<value_size>::Add(ss2);		
+
+	return CorrectCarryAfterAdding(p1_is_sign, p2_is_sign);
+	}
+
+
+	/*!
+		this method adds one *unsigned* word (at a specific position)
+		and returns a carry (if it was)
+
+		look at a description in UInt<>::AddInt(...)
+	*/
+	uint AddInt(uint value, uint index = 0)
+	{
+		bool p1_is_sign = IsSign();
+
+		UInt<value_size>::AddInt(value, index);		
+
+	return CorrectCarryAfterAdding(p1_is_sign, false);
+	}
+
+
+	/*!
+		this method adds two *unsigned* words to the existing value
+		and these words begin on the 'index' position
+
+		index should be equal or smaller than value_size-2 (index <= value_size-2)
+		x1 - lower word, x2 - higher word
+
+		look at a description in UInt<>::AddTwoInts(...)
+	*/
+	uint AddTwoInts(uint x2, uint x1, uint index)
+	{
+		bool p1_is_sign = IsSign();
+
+		UInt<value_size>::AddTwoInts(x2, x1, index);		
+
+	return CorrectCarryAfterAdding(p1_is_sign, false);
+	}
+
+private:
+
+	uint CorrectCarryAfterSubtracting(bool p1_is_sign, bool p2_is_sign)
+	{
+		if( !p1_is_sign && p2_is_sign )
+		{
+			if( UInt<value_size>::IsTheHighestBitSet() )
+				return 1;
+		}
+
+		if( p1_is_sign && !p2_is_sign )
+		{	
+			if( ! UInt<value_size>::IsTheHighestBitSet() )
+				return 1;
+		}
+
+	return 0;
+	}
+
+public:
+
+	/*!	
+		this method subtracts two values with a sign
+
+		we don't use the previous Add because the method ChangeSign can
+		sometimes return carry 
+
+		this = p1(=this) - p2
+
+		when p1>=0 i p2>=0 carry will never be set
+		when p1<0  i p2<0  carry will never be set
+		when p1>=0 i p2<0  carry is set when the highest bit of value is set
+		when p1<0  i p2>=0 carry is set when the highest bit of value is clear
+	*/
+	uint Sub(const Int<value_size> & ss2)
+	{
+		bool p1_is_sign = IsSign();
+		bool p2_is_sign = ss2.IsSign();
+
+		UInt<value_size>::Sub(ss2);		
+
+	return CorrectCarryAfterSubtracting(p1_is_sign, p2_is_sign);
+	}
+
+
+	/*!
+		this method subtracts one *unsigned* word (at a specific position)
+		and returns a carry (if it was)
+	*/
+	uint SubInt(uint value, uint index = 0)
+	{
+		bool p1_is_sign = IsSign();
+
+		UInt<value_size>::SubInt(value, index);		
+
+	return CorrectCarryAfterSubtracting(p1_is_sign, false);
+	}
+
+
+	/*!
+		this method adds one to the value and returns carry
+	*/
+	uint AddOne()
+	{
+		bool p1_is_sign = IsSign();
+
+		UInt<value_size>::AddOne();		
+
+	return CorrectCarryAfterAdding(p1_is_sign, false);
+	}
+
+
+	/*!
+		this method subtracts one from the value and returns carry
+	*/
+	uint SubOne()
+	{
+		bool p1_is_sign = IsSign();
+
+		UInt<value_size>::SubOne();		
+
+	return CorrectCarryAfterSubtracting(p1_is_sign, false);
+	}
+
+
+private:
+
+
+	uint CheckMinCarry(bool ss1_is_sign, bool ss2_is_sign)
+	{
+		/*
+			we have to examine the sign of the result now
+			but if the result is with the sign then:
+				1. if the signs were the same that means the result is too big
+				(the result must be without a sign)
+				2. if the signs were different that means if the result
+				is different from that one which has been returned from SetMin()
+				that is carry (result too big) but if the result is equal SetMin()
+				there'll be ok (and the next SetSign will has no effect because
+				the value is actually negative -- look at description of that case
+				in ChangeSign())
+		*/
+		if( IsSign() )
+		{
+			if( ss1_is_sign != ss2_is_sign )
+			{
+				/*
+					there can be one case where signs are different and
+					the result will be equal the value from SetMin() (only the highest bit is set)
+					(this situation is ok)
+				*/
+				if( !UInt<value_size>::IsOnlyTheHighestBitSet() )
+					return 1;
+			}
+			else
+			{
+				// signs were the same
+				return 1;
+			}
+		}
+
+	return 0;
+	}
+
+
+public:
+
+
+	/*!
+		multiplication: this = this * ss2
+
+		it can return a carry
+	*/
+	uint MulInt(sint ss2)
+	{
+	bool ss1_is_sign, ss2_is_sign;
+	uint c;
+
+		ss1_is_sign = IsSign();
+
+		/*
+			we don't have to check the carry from Abs (values will be correct
+			because next we're using the method MulInt from the base class UInt
+			which is without a sign)
+		*/
+		Abs();
+
+		if( ss2 < 0 )
+		{
+			ss2 = -ss2;
+			ss2_is_sign = true;
+		}
+		else
+		{
+			ss2_is_sign = false;
+		}
+
+		c  = UInt<value_size>::MulInt((uint)ss2);
+		c += CheckMinCarry(ss1_is_sign, ss2_is_sign);
+
+		if( ss1_is_sign != ss2_is_sign )
+			SetSign();
+
+	return c;
+	}
+
+
+
+	/*!
+		multiplication this = this * ss2
+
+		it returns carry if the result is too big
+		(we're using the method from the base class but we have to make
+		one correction in account of signs)
+	*/
+	uint Mul(Int<value_size> ss2)
+	{
+	bool ss1_is_sign, ss2_is_sign;
+	uint c;
+
+		ss1_is_sign = IsSign();
+		ss2_is_sign = ss2.IsSign();
+
+		/*
+			we don't have to check the carry from Abs (values will be correct
+			because next we're using the method Mul from the base class UInt
+			which is without a sign)
+		*/
+		Abs();
+		ss2.Abs();
+
+		c  = UInt<value_size>::Mul(ss2);
+		c += CheckMinCarry(ss1_is_sign, ss2_is_sign);
+
+		if( ss1_is_sign != ss2_is_sign )
+			SetSign();
+
+	return c;
+	}
+
+
+	/*!
+		division this = this / ss2
+		returned values:
+			0 - ok
+			1 - division by zero
+
+		for example: (result means 'this')
+			 20 /  3 --> result:  6   remainder:  2
+			-20 /  3 --> result: -6   remainder: -2
+			 20 / -3 --> result: -6   remainder:  2
+			-20 / -3 --> result:  6   remainder: -2
+
+		in other words: this(old) = ss2 * this(new)(result) + remainder
+	*/
+	uint Div(Int<value_size> ss2, Int<value_size> * remainder = 0)
+	{
+	bool ss1_is_sign, ss2_is_sign;
+
+		ss1_is_sign = IsSign();
+		ss2_is_sign = ss2.IsSign();
+
+		/*
+			we don't have to test the carry from Abs as well as in Mul
+		*/
+		Abs();
+		ss2.Abs();
+
+		uint c = UInt<value_size>::Div(ss2, remainder);
+
+		if( ss1_is_sign != ss2_is_sign )
+			SetSign();
+
+		if( ss1_is_sign && remainder )
+			remainder->SetSign();
+
+	return c;
+	}
+	
+	uint Div(const Int<value_size> & ss2, Int<value_size> & remainder)
+	{
+		return Div(ss2, &remainder);
+	}
+
+
+	/*!
+		division this = this / ss2  (ss2 is int)
+		returned values:
+			0 - ok
+			1 - division by zero
+
+		for example: (result means 'this')
+			 20 /  3 --> result:  6   remainder:  2
+			-20 /  3 --> result: -6   remainder: -2
+			 20 / -3 --> result: -6   remainder:  2
+			-20 / -3 --> result:  6   remainder: -2
+
+		in other words: this(old) = ss2 * this(new)(result) + remainder
+	*/
+	uint DivInt(sint ss2, sint * remainder = 0)
+	{
+	bool ss1_is_sign, ss2_is_sign;
+
+		ss1_is_sign = IsSign();
+
+		/*
+			we don't have to test the carry from Abs as well as in Mul
+		*/
+		Abs();
+
+		if( ss2 < 0 )
+		{
+			ss2 = -ss2;
+			ss2_is_sign = true;
+		}
+		else
+		{
+			ss2_is_sign = false;
+		}
+
+		uint rem;
+		uint c = UInt<value_size>::DivInt((uint)ss2, &rem);
+
+		if( ss1_is_sign != ss2_is_sign )
+			SetSign();
+
+		if( remainder )
+		{
+			if( ss1_is_sign )
+				*remainder = -sint(rem);
+			else
+				*remainder = sint(rem);
+		}
+
+	return c;
+	}
+
+
+	uint DivInt(sint ss2, sint & remainder)
+	{
+		return DivInt(ss2, &remainder);
+	}
+
+
+private:
