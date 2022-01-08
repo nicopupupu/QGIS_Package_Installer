@@ -1599,3 +1599,325 @@ public:
 
 
 	bool operator<=(const Int<value_size> & l) const
+	{
+		sint i=value_size-1;
+
+		sint a1 = sint(UInt<value_size>::table[i]);
+		sint a2 = sint(l.table[i]);
+
+		if( a1 != a2 )
+			return a1 < a2;
+
+
+		for(--i ; i>=0 ; --i)
+		{
+			if( UInt<value_size>::table[i] != l.table[i] )
+				// comparison as unsigned int
+				return UInt<value_size>::table[i] < l.table[i];
+		}
+
+	// they're equal
+	return true;
+	}
+
+
+	bool operator>=(const Int<value_size> & l) const
+	{
+		sint i=value_size-1;
+
+		sint a1 = sint(UInt<value_size>::table[i]);
+		sint a2 = sint(l.table[i]);
+
+		if( a1 != a2 )
+			return a1 > a2;
+
+
+		for(--i ; i>=0 ; --i)
+		{
+			if( UInt<value_size>::table[i] != l.table[i] )
+				// comparison as unsigned int
+				return UInt<value_size>::table[i] > l.table[i];
+		}
+
+	// they're equal
+	return true;
+	}
+
+
+
+	/*!
+	*
+	*	standard mathematical operators 
+	*
+	*/
+
+
+	/*!
+		an operator for changing the sign
+
+		it's not changing 'this' but the changed value will be returned
+	*/
+	Int<value_size> operator-() const
+	{
+	Int<value_size> temp(*this);
+
+		temp.ChangeSign();
+		
+	return temp;
+	}
+
+
+	Int<value_size> operator-(const Int<value_size> & p2) const
+	{
+	Int<value_size> temp(*this);
+
+		temp.Sub(p2);
+
+	return temp;
+	}
+
+
+	Int<value_size> & operator-=(const Int<value_size> & p2)
+	{
+		Sub(p2);
+
+	return *this;
+	}
+
+
+	Int<value_size> operator+(const Int<value_size> & p2) const
+	{
+	Int<value_size> temp(*this);
+
+		temp.Add(p2);
+
+	return temp;
+	}
+
+
+	Int<value_size> & operator+=(const Int<value_size> & p2)
+	{
+		Add(p2);
+
+	return *this;
+	}
+
+
+	Int<value_size> operator*(const Int<value_size> & p2) const
+	{
+	Int<value_size> temp(*this);
+
+		temp.Mul(p2);
+
+	return temp;
+	}
+
+
+	Int<value_size> & operator*=(const Int<value_size> & p2)
+	{
+		Mul(p2);
+
+	return *this;
+	}
+
+
+	Int<value_size> operator/(const Int<value_size> & p2) const
+	{
+	Int<value_size> temp(*this);
+
+		temp.Div(p2);
+
+	return temp;
+	}
+
+
+	Int<value_size> & operator/=(const Int<value_size> & p2)
+	{
+		Div(p2);
+
+	return *this;
+	}
+
+
+	Int<value_size> operator%(const Int<value_size> & p2) const
+	{
+	Int<value_size> temp(*this);
+	Int<value_size> remainder;
+	
+		temp.Div(p2, remainder);
+
+	return remainder;
+	}
+
+
+	Int<value_size> & operator%=(const Int<value_size> & p2)
+	{
+	Int<value_size> remainder;
+	
+		Div(p2, remainder);
+		operator=(remainder);
+
+	return *this;
+	}
+
+
+	/*!
+		Prefix operator e.g. ++variable
+	*/
+	UInt<value_size> & operator++()
+	{
+		AddOne();
+
+	return *this;
+	}
+
+
+	/*!
+		Postfix operator e.g. variable++
+	*/
+	UInt<value_size> operator++(int)
+	{
+	UInt<value_size> temp( *this );
+
+		AddOne();
+
+	return temp;
+	}
+
+
+	UInt<value_size> & operator--()
+	{
+		SubOne();
+
+	return *this;
+	}
+
+
+	UInt<value_size> operator--(int)
+	{
+	UInt<value_size> temp( *this );
+
+		SubOne();
+
+	return temp;
+	}
+
+
+
+	/*!
+	*
+	*	input/output operators for standard streams
+	*
+	*/
+
+private:
+
+	/*!
+		an auxiliary method for outputing to standard streams
+	*/
+	template<class ostream_type, class string_type>
+	static ostream_type & OutputToStream(ostream_type & s, const Int<value_size> & l)
+	{
+	string_type ss;
+
+		l.ToString(ss);
+		s << ss;
+
+	return s;
+	}
+
+
+
+public:
+
+
+	/*!
+		output to standard streams
+	*/
+	friend std::ostream & operator<<(std::ostream & s, const Int<value_size> & l)
+	{
+		return OutputToStream<std::ostream, std::string>(s, l);
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		output to standard streams
+	*/
+	friend std::wostream & operator<<(std::wostream & s, const Int<value_size> & l)
+	{
+		return OutputToStream<std::wostream, std::wstring>(s, l);
+	}
+
+#endif
+
+
+
+private:
+
+	/*!
+		an auxiliary method for converting from a string
+	*/
+	template<class istream_type, class string_type, class char_type>
+	static istream_type & InputFromStream(istream_type & s, Int<value_size> & l)
+	{
+	string_type ss;
+	
+	// char or wchar_t for operator>>
+	char_type z;
+	
+		// operator>> omits white characters if they're set for ommiting
+		s >> z;
+
+		if( z=='-' || z=='+' )
+		{
+			ss += z;
+			s >> z; // we're reading a next character (white characters can be ommited)
+		}
+
+		// we're reading only digits (base=10)
+		while( s.good() && Misc::CharToDigit(z, 10)>=0 )
+		{
+			ss += z;
+			z = static_cast<char_type>(s.get());
+		}
+
+		// we're leaving the last readed character
+		// (it's not belonging to the value)
+		s.unget();
+
+		l.FromString(ss);
+
+	return s;
+	}
+
+
+public:
+
+	/*!
+		input from standard streams
+	*/
+	friend std::istream & operator>>(std::istream & s, Int<value_size> & l)
+	{
+		return InputFromStream<std::istream, std::string, char>(s, l);
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		input from standard streams
+	*/
+	friend std::wistream & operator>>(std::wistream & s, Int<value_size> & l)
+	{
+		return InputFromStream<std::wistream, std::wstring, wchar_t>(s, l);
+	}
+#endif
+
+
+};
+
+} // namespace
+
+#endif
