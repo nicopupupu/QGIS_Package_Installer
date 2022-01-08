@@ -1235,3 +1235,367 @@ public:
 
 			if( (high & TTMATH_UINT_HIGHEST_BIT) != (mask & TTMATH_UINT_HIGHEST_BIT) )
 				return 1;
+
+			for(uint i=2 ; i<value_size ; ++i)
+				if( UInt<value_size>::table[i] != mask )
+					return 1;
+		}
+
+	return 0;
+	}
+
+#endif
+
+
+
+#ifdef TTMATH_PLATFORM64
+
+	/*!
+		this method converts the value to a 32 bit unsigned integer
+		can return a carry if the value is too long to store it in this type
+		*** this method is created only on a 64 bit platform ***
+	*/
+	uint ToUInt(unsigned int & result) const
+	{
+		uint c = UInt<value_size>::ToUInt(result);
+
+		if( c || IsSign() )
+			return 1;
+
+	return 0;
+	}
+
+
+	/*!
+		this method converts the value to a 32 bit unsigned integer
+		can return a carry if the value is too long to store it in this type
+		*** this method is created only on a 64 bit platform ***
+	*/
+	uint ToInt(unsigned int & result) const
+	{
+		return ToUInt(result);
+	}
+
+
+	/*!
+		this method converts the value to a 32 bit signed integer
+		can return a carry if the value is too long to store it in this type
+		*** this method is created only on a 64 bit platform ***
+	*/
+	uint ToInt(int & result) const
+	{
+		uint first = UInt<value_size>::table[0];
+
+		result = int(first);
+		uint mask = IsSign() ? TTMATH_UINT_MAX_VALUE : 0;
+	
+		if( (first >> 31) != (mask >> 31) )
+			return 1;
+
+		for(uint i=1 ; i<value_size ; ++i)
+			if( UInt<value_size>::table[i] != mask )
+				return 1;
+
+	return 0;
+	}
+
+#endif
+
+
+
+
+private:
+
+	/*!	
+		an auxiliary method for converting to a string
+	*/
+	template<class string_type>
+	void ToStringBase(string_type & result, uint b = 10) const
+	{
+		if( IsSign() )
+		{
+			Int<value_size> temp(*this);
+			temp.Abs();
+			temp.UInt<value_size>::ToStringBase(result, b, true);
+		}
+		else
+		{
+			UInt<value_size>::ToStringBase(result, b, false);
+		}
+	}
+
+public:
+
+	/*!	
+		this method converts the value to a string with a base equal 'b'
+	*/
+	void ToString(std::string & result, uint b = 10) const
+	{
+		return ToStringBase(result, b);
+	}
+
+
+	/*!	
+		this method converts the value to a string with a base equal 'b'
+	*/
+	std::string ToString(uint b = 10) const
+	{
+		std::string result;
+		ToStringBase(result, b);
+
+	return result;
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!	
+		this method converts the value to a string with a base equal 'b'
+	*/
+	void ToString(std::wstring & result, uint b = 10) const
+	{
+		return ToStringBase(result, b);
+	}
+
+
+	/*!	
+		this method converts the value to a string with a base equal 'b'
+	*/
+	std::wstring ToWString(uint b = 10) const
+	{
+		std::wstring result;
+		ToStringBase(result, b);
+
+	return result;
+	}
+
+#endif
+
+
+
+private:
+
+	/*!
+		an auxiliary method for converting from a string
+	*/
+	template<class char_type>
+	uint FromStringBase(const char_type * s, uint b = 10, const char_type ** after_source = 0, bool * value_read = 0)
+	{
+	bool is_sign = false;
+	
+		Misc::SkipWhiteCharacters(s);
+
+		if( *s == '-' )
+		{
+			is_sign = true;
+			Misc::SkipWhiteCharacters(++s);
+		}
+		else
+		if( *s == '+' )
+		{
+			Misc::SkipWhiteCharacters(++s);
+		}
+
+		if( UInt<value_size>::FromString(s,b,after_source,value_read) )
+			return 1;
+
+		if( is_sign )
+		{
+		Int<value_size> mmin;
+
+			mmin.SetMin();
+
+			/*
+				the reference to mmin will be automatically converted to the reference
+				to UInt type
+				(this value can be equal mmin -- look at a description in ChangeSign())
+			*/
+			if( UInt<value_size>::operator>( mmin ) )
+				return 1;
+
+			/*
+				if the value is equal mmin the method ChangeSign() does nothing (only returns 1 but we ignore it)
+			*/
+			ChangeSign();
+		}
+		else
+		{
+		Int<value_size> mmax;
+
+			mmax.SetMax();
+
+			if( UInt<value_size>::operator>( mmax ) )
+					return 1;
+		}
+
+	return 0;
+	}
+
+
+public:
+
+	/*!
+		this method converts a string into its value
+		it returns carry=1 if the value will be too big or an incorrect base 'b' is given
+
+		string is ended with a non-digit value, for example:
+			"-12" will be translated to -12
+			as well as:
+			"- 12foo" will be translated to -12 too
+
+		existing first white characters will be ommited
+		(between '-' and a first digit can be white characters too)
+
+		after_source (if exists) is pointing at the end of the parsed string
+
+		value_read (if exists) tells whether something has actually been read (at least one digit)
+	*/
+	uint FromString(const char * s, uint b = 10, const char ** after_source = 0, bool * value_read = 0)
+	{
+		return FromStringBase(s, b, after_source, value_read);
+	}
+
+
+	/*!
+		this method converts a string into its value
+	*/
+	uint FromString(const wchar_t * s, uint b = 10, const wchar_t ** after_source = 0, bool * value_read = 0)
+	{
+		return FromStringBase(s, b, after_source, value_read);
+	}
+
+
+	/*!
+		this method converts a string into its value
+		it returns carry=1 if the value will be too big or an incorrect base 'b' is given
+	*/
+	uint FromString(const std::string & s, uint b = 10)
+	{
+		return FromString( s.c_str(), b );
+	}
+
+
+	/*!
+		this operator converts a string into its value (with base = 10)
+	*/
+	Int<value_size> & operator=(const char * s)
+	{
+		FromString(s);
+
+	return *this;
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+
+	/*!
+		this method converts a string into its value
+		it returns carry=1 if the value will be too big or an incorrect base 'b' is given
+	*/
+	uint FromString(const std::wstring & s, uint b = 10)
+	{
+		return FromString( s.c_str(), b );
+	}
+
+
+	/*!
+		this operator converts a string into its value (with base = 10)
+	*/
+	Int<value_size> & operator=(const wchar_t * s)
+	{
+		FromString(s);
+
+	return *this;
+	}
+
+
+	/*!
+		this operator converts a string into its value (with base = 10)
+	*/
+	Int<value_size> & operator=(const std::wstring & s)
+	{
+		FromString( s.c_str() );
+
+	return *this;
+	}
+
+#endif
+
+
+	/*!
+		this operator converts a string into its value (with base = 10)
+	*/
+	Int<value_size> & operator=(const std::string & s)
+	{
+		FromString( s.c_str() );
+
+	return *this;
+	}
+
+
+
+	/*!
+	*
+	*	methods for comparing
+	*
+	*
+	*/
+
+	bool operator==(const Int<value_size> & l) const
+	{
+		return UInt<value_size>::operator==(l);
+	}
+
+	bool operator!=(const Int<value_size> & l) const
+	{
+		return UInt<value_size>::operator!=(l);
+	}
+
+	bool operator<(const Int<value_size> & l) const
+	{
+		sint i=value_size-1;
+
+		sint a1 = sint(UInt<value_size>::table[i]);
+		sint a2 = sint(l.table[i]);
+
+		if( a1 != a2 )
+			return a1 < a2;
+
+
+		for(--i ; i>=0 ; --i)
+		{
+			if( UInt<value_size>::table[i] != l.table[i] )
+				// comparison as unsigned int
+				return UInt<value_size>::table[i] < l.table[i];
+		}
+
+	// they're equal
+	return false;
+	}
+
+
+	bool operator>(const Int<value_size> & l) const
+	{
+		sint i=value_size-1;
+
+		sint a1 = sint(UInt<value_size>::table[i]);
+		sint a2 = sint(l.table[i]);
+
+		if( a1 != a2 )
+			return a1 > a2;
+
+
+		for(--i ; i>=0 ; --i)
+		{
+			if( UInt<value_size>::table[i] != l.table[i] )
+				// comparison as unsigned int
+				return UInt<value_size>::table[i] > l.table[i];
+		}
+
+	// they're equal
+	return false;
+	}
+
+
+	bool operator<=(const Int<value_size> & l) const
