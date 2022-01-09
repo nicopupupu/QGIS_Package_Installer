@@ -477,3 +477,334 @@ public:
 		of a specific object
 	*/
 	ErrorCode GetValueAndParam(const std::string & name, std::string & value, int * param) const
+	{
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		CIterator i = table.find(name);
+
+		if( i == table.end() )
+		{
+			value.empty();
+			*param = 0;
+			return err_unknown_object;
+		}
+
+		value = i->second.value;
+		*param = i->second.param;
+
+	return err_ok;
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		this method gets the value and the number of parameters
+		of a specific object
+	*/
+	ErrorCode GetValueAndParam(const std::wstring & name, std::wstring & value, int * param)
+	{
+		// we should check whether the name (in wide characters) are correct
+		// before calling AssignString() function
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		Misc::AssignString(str_tmp1, name);
+		ErrorCode err = GetValueAndParam(str_tmp1, str_tmp2, param);
+		Misc::AssignString(value, str_tmp2);
+
+	return err;
+	}
+
+#endif
+
+
+	/*!
+		this method sets the value and the number of parameters
+		of a specific object
+		(this version is used for not copying the whole string)
+	*/
+	ErrorCode GetValueAndParam(const std::string & name, const char ** value, int * param) const
+	{
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		CIterator i = table.find(name);
+
+		if( i == table.end() )
+		{
+			*value = 0;
+			*param = 0;
+			return err_unknown_object;
+		}
+
+		*value = i->second.value.c_str();
+		*param = i->second.param;
+
+	return err_ok;
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+
+	/*!
+		this method sets the value and the number of parameters
+		of a specific object
+		(this version is used for not copying the whole string
+		but in fact we make one copying during AssignString())
+	*/
+	ErrorCode GetValueAndParam(const std::wstring & name, const char ** value, int * param)
+	{
+		// we should check whether the name (in wide characters) are correct
+		// before calling AssignString() function
+		if( !IsNameCorrect(name) )
+			return err_incorrect_name;
+
+		Misc::AssignString(str_tmp1, name);
+
+	return GetValueAndParam(str_tmp1, value, param);
+	}
+
+
+#endif
+
+
+	/*!
+		this method returns a pointer into the table
+	*/
+	Table * GetTable()
+	{
+		return &table;
+	}
+
+
+private:
+
+	Table table;
+	std::string str_tmp1, str_tmp2;
+
+}; // end of class Objects
+
+
+
+
+
+
+
+/*!
+	objects of the class History are used to keep values in functions
+	which take a lot of time during calculating, for instance in the 
+	function Factorial(x)
+
+	it means that when we're calculating e.g. Factorial(1000) and the 
+	Factorial finds that we have calculated it before, the value (result)
+	is taken from the history
+*/
+template<class ValueType>
+class History
+{
+	/*!
+		one item in the History's object holds a key, a value for the key
+		and a corresponding error code
+	*/
+	struct Item
+	{
+		ValueType key, value;
+		ErrorCode err;
+	};
+
+
+	/*!
+		we use std::list for simply deleting the first item
+		but because we're searching through the whole container
+		(in the method Get) the container should not be too big
+		(linear time of searching)
+	*/
+	typedef std::list<Item> buffer_type;
+	buffer_type buffer;
+	typename buffer_type::size_type buffer_max_size;
+
+public:
+	
+	/*!
+		default constructor
+		default max size of the History's container is 15 items
+	*/
+	History()
+	{
+		buffer_max_size = 15;
+	}
+
+
+	/*!
+		a constructor which takes another value of the max size
+		of the History's container
+	*/
+	History(typename buffer_type::size_type new_size)
+	{
+		buffer_max_size = new_size;
+	}
+
+
+	/*!
+		this method adds one item into the History
+		if the size of the container is greater than buffer_max_size
+		the first item will be removed
+	*/
+	void Add(const ValueType & key, const ValueType & value, ErrorCode err)
+	{
+		Item item;
+		item.key   = key;
+		item.value = value;
+		item.err   = err;
+
+		buffer.insert( buffer.end(), item );
+
+		if( buffer.size() > buffer_max_size )
+			buffer.erase(buffer.begin());
+	}
+
+
+	/*!
+		this method checks whether we have an item which has the key equal 'key'
+
+		if there's such item the method sets the 'value' and the 'err'
+		and returns true otherwise it returns false and 'value' and 'err'
+		remain unchanged
+	*/
+	bool Get(const ValueType & key, ValueType & value, ErrorCode & err)
+	{
+		typename buffer_type::iterator i = buffer.begin();
+
+		for( ; i != buffer.end() ; ++i )
+		{
+			if( i->key == key )
+			{
+				value = i->value;
+				err   = i->err;
+				return true;
+			}
+		}
+
+	return false;
+	}
+
+
+	/*!
+		this methods deletes an item
+
+		we assume that there is only one item with the 'key'
+		(this methods removes the first one)
+	*/
+	bool Remove(const ValueType & key)
+	{
+		typename buffer_type::iterator i = buffer.begin();
+
+		for( ; i != buffer.end() ; ++i )
+		{
+			if( i->key == key )
+			{
+				buffer.erase(i);
+				return true;
+			}
+		}
+
+	return false;
+	}
+
+
+}; // end of class History
+
+
+
+/*!
+	this is an auxiliary class used when calculating Gamma() or Factorial()
+
+	in multithreaded environment you can provide an object of this class to
+	the Gamma() or Factorial() function, e.g;
+		typedef Big<1, 3> MyBig;
+		MyBig x = 123456;
+		CGamma<MyBig> cgamma;
+		std::cout << Gamma(x, cgamma);
+	each thread should have its own CGamma<> object
+
+	in a single-thread environment a CGamma<> object is a static variable
+	in a second version of Gamma() and you don't have to explicitly use it, e.g.
+		typedef Big<1, 3> MyBig;
+		MyBig x = 123456;
+		std::cout << Gamma(x);
+*/
+template<class ValueType>
+struct CGamma
+{
+	/*!
+		this table holds factorials
+			1
+			1
+			2
+			6
+			24
+			120
+			720
+			.......
+	*/
+	std::vector<ValueType> fact;
+
+
+	/*!
+		this table holds Bernoulli numbers
+			1
+			-0.5
+			0.166666666666666666666666667
+			0
+			-0.0333333333333333333333333333
+			0
+			0.0238095238095238095238095238
+			0
+			-0.0333333333333333333333333333
+			0
+			0.075757575757575757575757576
+			.....
+	*/
+	std::vector<ValueType> bern;
+
+
+	/*!
+		here we store some calculated values
+		(this is for speeding up, if the next argument of Gamma() or Factorial()
+		is in the 'history' then the result we are not calculating but simply
+		return from the 'history' object)
+	*/
+	History<ValueType> history;
+
+
+	/*!
+		this method prepares some coefficients: factorials and Bernoulli numbers
+		stored in 'fact' and 'bern' objects
+		
+		how many values should be depends on the size of the mantissa - if
+		the mantissa is larger then we must calculate more values
+		    for a mantissa which consists of 256 bits (8 words on a 32bit platform)
+			we have to calculate about 30 values (the size of fact and bern will be 30),
+			and for a 2048 bits mantissa we have to calculate 306 coefficients
+
+		you don't have to call this method, these coefficients will be automatically calculated
+		when they are needed
+
+		you must note that calculating these coefficients is a little time-consuming operation,
+		(especially when the mantissa is large) and first call to Gamma() or Factorial()
+		can take more time than next calls, and in the end this is the point when InitAll()
+		comes in handy: you can call this method somewhere at the beginning of your program
+	*/
+	void InitAll();
+	// definition is in ttmath.h
+};
+
+
+
+
+} // namespace
+
+#endif
