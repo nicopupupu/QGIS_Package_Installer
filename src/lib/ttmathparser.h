@@ -361,3 +361,347 @@ const Objects * puser_variables;
 /*!
 	a pointer to the user-defined functions' table
 */
+const Objects * puser_functions;
+
+
+typedef std::map<std::string, ValueType> FunctionLocalVariables;
+
+/*!
+	a pointer to the local variables of a function
+*/
+const FunctionLocalVariables * pfunction_local_variables;
+
+
+/*!
+	a temporary set using during parsing user defined variables
+*/
+std::set<std::string> visited_variables;
+
+
+/*!
+	a temporary set using during parsing user defined functions
+*/
+std::set<std::string> visited_functions;
+
+
+
+
+/*!
+	pfunction is the type of pointer to a mathematic function
+
+	these mathematic functions are private members of this class,
+	they are the wrappers for standard mathematics function
+
+	'pstack' is the pointer to the first argument on our stack
+	'amount_of_arg' tell us how many argument there are in our stack
+	'result' is the reference for result of function 
+*/
+typedef void (Parser<ValueType>::*pfunction)(int pstack, int amount_of_arg, ValueType & result);
+
+
+/*!
+	pfunction is the type of pointer to a method which returns value of variable
+*/
+typedef void (ValueType::*pfunction_var)();
+
+
+/*!
+	table of mathematic functions
+
+	this map consists of:
+		std::string - function's name
+		pfunction - pointer to specific function
+*/
+typedef std::map<std::string, pfunction> FunctionsTable;
+FunctionsTable functions_table;
+
+
+/*!
+	table of mathematic operators
+
+	this map consists of:
+		std::string - operators's name
+		MatOperator::Type - type of the operator
+*/
+typedef std::map<std::string, typename MatOperator::Type> OperatorsTable;
+OperatorsTable operators_table;
+
+
+/*!
+	table of mathematic variables
+
+	this map consists of:
+		std::string     - variable's name
+		pfunction_var - pointer to specific function which returns value of variable
+*/
+typedef std::map<std::string, pfunction_var> VariablesTable;
+VariablesTable variables_table;
+
+
+/*!
+	some coefficients used when calculating the gamma (or factorial) function
+*/
+CGamma<ValueType> cgamma;
+
+
+/*!
+	temporary object for a whole string when Parse(std::wstring) is used
+*/
+std::string wide_to_ansi;
+
+
+/*!
+	group character (used when parsing)
+	default zero (not used)
+*/
+int group;
+
+
+/*!
+	characters used as a comma
+	default: '.' and ','
+	comma2 can be zero (it means it is not used)
+*/
+int comma, comma2;
+
+
+/*!
+	an additional character used as a separator between function parameters
+	(semicolon is used always)
+*/
+int param_sep;
+
+
+/*!
+	true if something was calculated (at least one mathematical operator was used or a function or a variable)
+*/
+bool calculated;
+
+
+
+/*!
+	we're using this method for reporting an error
+*/
+static void Error(ErrorCode code)
+{
+	throw code;
+}
+
+
+/*!
+	this method skips the white character from the string
+
+	it's moving the 'pstring' to the first no-white character
+*/
+void SkipWhiteCharacters()
+{
+	while( (*pstring==' ' ) || (*pstring=='\t') )
+		++pstring;
+}
+
+
+/*!
+	an auxiliary method for RecurrenceParsingVariablesOrFunction(...)
+*/
+void RecurrenceParsingVariablesOrFunction_CheckStopCondition(bool variable, const std::string & name)
+{
+	if( variable )
+	{
+		if( visited_variables.find(name) != visited_variables.end() )
+			Error( err_variable_loop );
+	}
+	else
+	{
+		if( visited_functions.find(name) != visited_functions.end() )
+			Error( err_functions_loop );
+	}
+}
+
+
+/*!
+	an auxiliary method for RecurrenceParsingVariablesOrFunction(...)
+*/
+void RecurrenceParsingVariablesOrFunction_AddName(bool variable, const std::string & name)
+{
+	if( variable )
+		visited_variables.insert( name );
+	else
+		visited_functions.insert( name );
+}
+
+
+/*!
+	an auxiliary method for RecurrenceParsingVariablesOrFunction(...)
+*/
+void RecurrenceParsingVariablesOrFunction_DeleteName(bool variable, const std::string & name)
+{
+	if( variable )
+		visited_variables.erase( name );
+	else
+		visited_functions.erase( name );
+}
+
+
+/*!
+	this method returns the value of a variable or function
+	by creating a new instance of the mathematical parser 
+	and making the standard parsing algorithm on the given string
+
+	this method is used only during parsing user defined variables or functions
+
+	(there can be a recurrence here therefore we're using 'visited_variables'
+	and 'visited_functions' sets to make a stop condition)
+*/
+ValueType RecurrenceParsingVariablesOrFunction(bool variable, const std::string & name, const char * new_string,
+											   FunctionLocalVariables * local_variables = 0)
+{
+	RecurrenceParsingVariablesOrFunction_CheckStopCondition(variable, name);
+	RecurrenceParsingVariablesOrFunction_AddName(variable, name);
+
+	Parser<ValueType> NewParser(*this);
+	ErrorCode err;
+
+	NewParser.pfunction_local_variables = local_variables;
+
+	try
+	{
+		err = NewParser.Parse(new_string);
+	}
+	catch(...)
+	{
+		RecurrenceParsingVariablesOrFunction_DeleteName(variable, name);
+
+	throw;
+	}
+
+	RecurrenceParsingVariablesOrFunction_DeleteName(variable, name);
+
+	if( err != err_ok )
+		Error( err );
+
+	if( NewParser.stack.size() != 1 )
+		Error( err_must_be_only_one_value );
+
+	if( NewParser.stack[0].type != Item::numerical_value )
+		// I think there shouldn't be this error here
+		Error( err_incorrect_value );
+
+return NewParser.stack[0].value;
+}
+
+
+public:
+
+
+/*!
+	this method returns the user-defined value of a variable
+*/
+bool GetValueOfUserDefinedVariable(const std::string & variable_name,ValueType & result)
+{
+	if( !puser_variables )
+		return false;
+
+	const char * string_value;
+
+	if( puser_variables->GetValue(variable_name, &string_value) != err_ok )
+		return false;
+
+	result = RecurrenceParsingVariablesOrFunction(true, variable_name, string_value);
+	calculated = true;
+
+return true;
+}
+
+
+/*!
+	this method returns the value of a local variable of a function
+*/
+bool GetValueOfFunctionLocalVariable(const std::string & variable_name, ValueType & result)
+{
+	if( !pfunction_local_variables )
+		return false;
+
+	typename FunctionLocalVariables::const_iterator i = pfunction_local_variables->find(variable_name);
+
+	if( i == pfunction_local_variables->end() )
+		return false;
+
+	result = i->second;
+
+return true;
+}
+
+
+/*!
+	this method returns the value of a variable from variables' table
+
+	we make an object of type ValueType then call a method which 
+	sets the correct value in it and finally we'll return the object
+*/
+ValueType GetValueOfVariable(const std::string & variable_name)
+{
+ValueType result;
+
+	if( GetValueOfFunctionLocalVariable(variable_name, result) )
+		return result;
+
+	if( GetValueOfUserDefinedVariable(variable_name, result) )
+		return result;
+
+
+	typename std::map<std::string, pfunction_var>::iterator i =
+													variables_table.find(variable_name);
+
+	if( i == variables_table.end() )
+		Error( err_unknown_variable );
+
+	(result.*(i->second))();
+	calculated = true;
+
+return result;
+}
+
+
+private:
+
+/*!
+	wrappers for mathematic functions
+
+	'sindex' is pointing on the first argument on our stack 
+			 (the second argument has 'sindex+2'
+			 because 'sindex+1' is guaranted for the 'semicolon' operator)
+			 the third artument has of course 'sindex+4' etc.
+
+	'result' will be the result of the function
+
+	(we're using exceptions here for example when function gets an improper argument)
+*/
+
+
+/*!
+	used by: sin,cos,tan,cot
+*/
+ValueType ConvertAngleToRad(const ValueType & input)
+{
+	if( deg_rad_grad == 1 ) // rad
+		return input;
+
+	ValueType result;
+	ErrorCode err;
+
+	if( deg_rad_grad == 0 ) // deg
+		result = ttmath::DegToRad(input, &err);
+	else // grad
+		result = ttmath::GradToRad(input, &err);
+
+	if( err != err_ok )
+		Error( err );
+
+return result;
+}
+
+
+/*!
+	used by: asin,acos,atan,acot
+*/
+ValueType ConvertRadToAngle(const ValueType & input)
