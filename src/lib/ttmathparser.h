@@ -705,3 +705,326 @@ return result;
 	used by: asin,acos,atan,acot
 */
 ValueType ConvertRadToAngle(const ValueType & input)
+{
+	if( deg_rad_grad == 1 ) // rad
+		return input;
+
+	ValueType result;
+	ErrorCode err;
+
+	if( deg_rad_grad == 0 ) // deg
+		result = ttmath::RadToDeg(input, &err);
+	else // grad
+		result = ttmath::RadToGrad(input, &err);
+
+	if( err != err_ok )
+		Error( err );
+
+return result;
+}
+
+
+void Gamma(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	
+	result = ttmath::Gamma(stack[sindex].value, cgamma, &err, pstop_calculating);
+
+	if(err != err_ok)
+		Error( err );
+}
+
+
+/*!
+	factorial
+	result = 1 * 2 * 3 * 4 * .... * x
+*/
+void Factorial(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+
+	result = ttmath::Factorial(stack[sindex].value, cgamma, &err, pstop_calculating);
+
+	if(err != err_ok)
+		Error( err );
+}
+
+
+void Abs(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	result = ttmath::Abs(stack[sindex].value);
+}
+
+void Sin(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Sin( ConvertAngleToRad(stack[sindex].value), &err );
+
+	if(err != err_ok)
+		Error( err );
+}
+
+void Cos(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Cos( ConvertAngleToRad(stack[sindex].value), &err );
+
+	if(err != err_ok)
+		Error( err );
+}
+
+void Tan(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Tan(ConvertAngleToRad(stack[sindex].value), &err);
+
+	if(err != err_ok)
+		Error( err );
+}
+
+void Cot(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Cot(ConvertAngleToRad(stack[sindex].value), &err);
+
+	if(err != err_ok)
+		Error( err );
+}
+
+void Int(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	result = ttmath::SkipFraction(stack[sindex].value);
+}
+
+
+void Round(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	result = stack[sindex].value;
+
+	if( result.Round() )
+		Error( err_overflow );
+}
+
+
+void Ln(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Ln(stack[sindex].value, &err);
+
+	if(err != err_ok)
+		Error( err );
+}
+
+void Log(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 2 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Log(stack[sindex].value, stack[sindex+2].value, &err);
+
+	if(err != err_ok)
+		Error( err );
+}
+
+void Exp(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Exp(stack[sindex].value, &err);
+
+	if(err != err_ok)
+		Error( err );
+}
+
+
+void Max(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args == 0 )
+	{
+		result.SetMax();
+
+	return;
+	}
+
+	result = stack[sindex].value;
+
+	for(int i=1 ; i<amount_of_args ; ++i)
+	{
+		if( result < stack[sindex + i*2].value )
+			result = stack[sindex + i*2].value;
+	}
+}
+
+
+void Min(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args == 0 )
+	{
+		result.SetMin();
+
+	return;
+	}
+
+	result = stack[sindex].value;
+
+	for(int i=1 ; i<amount_of_args ; ++i)
+	{
+		if( result > stack[sindex + i*2].value )
+			result = stack[sindex + i*2].value;
+	}
+}
+
+
+void ASin(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	ValueType temp = ttmath::ASin(stack[sindex].value, &err);
+
+	if(err != err_ok)
+		Error( err );
+
+	result = ConvertRadToAngle(temp);
+}
+
+
+void ACos(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	ValueType temp = ttmath::ACos(stack[sindex].value, &err);
+
+	if(err != err_ok)
+		Error( err );
+
+	result = ConvertRadToAngle(temp);
+}
+
+
+void ATan(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	result = ConvertRadToAngle(ttmath::ATan(stack[sindex].value));
+}
+
+
+void ACot(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	result = ConvertRadToAngle(ttmath::ACot(stack[sindex].value));
+}
+
+
+void Sgn(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	result = ttmath::Sgn(stack[sindex].value);
+}
+
+
+void Mod(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 2 )
+		Error( err_improper_amount_of_arguments );
+
+	if( stack[sindex+2].value.IsZero() )
+		Error( err_improper_argument );
+
+	result = stack[sindex].value;
+	uint c = result.Mod(stack[sindex+2].value);
+
+	if( c )
+		Error( err_overflow );
+}
+
+
+void If(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 3 )
+		Error( err_improper_amount_of_arguments );
+
+
+	if( !stack[sindex].value.IsZero() )
+		result = stack[sindex+2].value;
+	else
+		result = stack[sindex+4].value;
+}
+
+
+void Or(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args < 2 )
+		Error( err_improper_amount_of_arguments );
+
+	for(int i=0 ; i<amount_of_args ; ++i)
+	{
+		if( !stack[sindex+i*2].value.IsZero() )
+		{
+			result.SetOne();
+			return;
+		}
+	}
+
+	result.SetZero();
+}
+
+
+void And(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args < 2 )
+		Error( err_improper_amount_of_arguments );
+
+	for(int i=0 ; i<amount_of_args ; ++i)
+	{
+		if( stack[sindex+i*2].value.IsZero() )
+		{
+			result.SetZero();
+			return;
+		}
+	}
+
+	result.SetOne();
+}
