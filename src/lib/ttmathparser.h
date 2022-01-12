@@ -1028,3 +1028,346 @@ void And(int sindex, int amount_of_args, ValueType & result)
 
 	result.SetOne();
 }
+
+
+void Not(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+
+	if( stack[sindex].value.IsZero() )
+		result.SetOne();
+	else
+		result.SetZero();
+}
+
+
+void DegToRad(int sindex, int amount_of_args, ValueType & result)
+{
+	ErrorCode err = err_ok;
+
+	if( amount_of_args == 1 )
+	{
+		result = ttmath::DegToRad(stack[sindex].value, &err);
+	}
+	else
+	if( amount_of_args == 3 )
+	{
+		result = ttmath::DegToRad(	stack[sindex].value, stack[sindex+2].value,
+									stack[sindex+4].value, &err);
+	}
+	else
+		Error( err_improper_amount_of_arguments );
+
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void RadToDeg(int sindex, int amount_of_args, ValueType & result)
+{
+	ErrorCode err;
+
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+	
+	result = ttmath::RadToDeg(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void DegToDeg(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 3 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::DegToDeg(	stack[sindex].value, stack[sindex+2].value,
+								stack[sindex+4].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void GradToRad(int sindex, int amount_of_args, ValueType & result)
+{
+	ErrorCode err;
+
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+	
+	result = ttmath::GradToRad(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void RadToGrad(int sindex, int amount_of_args, ValueType & result)
+{
+	ErrorCode err;
+
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+	
+	result = ttmath::RadToGrad(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void DegToGrad(int sindex, int amount_of_args, ValueType & result)
+{
+	ErrorCode err = err_ok;
+
+	if( amount_of_args == 1 )
+	{
+		result = ttmath::DegToGrad(stack[sindex].value, &err);
+	}
+	else
+	if( amount_of_args == 3 )
+	{
+		result = ttmath::DegToGrad(	stack[sindex].value, stack[sindex+2].value,
+									stack[sindex+4].value, &err);
+	}
+	else
+		Error( err_improper_amount_of_arguments );
+
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void GradToDeg(int sindex, int amount_of_args, ValueType & result)
+{
+	ErrorCode err;
+
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+	
+	result = ttmath::GradToDeg(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void Ceil(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Ceil(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void Floor(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Floor(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+void Sqrt(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Sqrt(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void Sinh(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Sinh(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void Cosh(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Cosh(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void Tanh(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Tanh(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void Coth(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Coth(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void Root(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 2 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::Root(stack[sindex].value, stack[sindex+2].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+
+void ASinh(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::ASinh(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void ACosh(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::ACosh(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void ATanh(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::ATanh(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void ACoth(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	ErrorCode err;
+	result = ttmath::ACoth(stack[sindex].value, &err);
+
+	if( err != err_ok )
+		Error( err );
+}
+
+
+void BitAnd(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 2 )
+		Error( err_improper_amount_of_arguments );
+
+	uint err;
+	result = stack[sindex].value;
+	err = result.BitAnd(stack[sindex+2].value);
+
+	switch(err)
+	{
+	case 1:
+		Error( err_overflow );
+		break;
+	case 2:
+		Error( err_improper_argument );
+		break;
+	}
+}
+
+void BitOr(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 2 )
+		Error( err_improper_amount_of_arguments );
+
+	uint err;
+	result = stack[sindex].value;
+	err = result.BitOr(stack[sindex+2].value);
+
+	switch(err)
+	{
+	case 1:
+		Error( err_overflow );
+		break;
+	case 2:
+		Error( err_improper_argument );
+		break;
+	}
+}
+
+
+void BitXor(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 2 )
+		Error( err_improper_amount_of_arguments );
+
+	uint err;
+	result = stack[sindex].value;
+	err = result.BitXor(stack[sindex+2].value);
+
+	switch(err)
+	{
+	case 1:
+		Error( err_overflow );
+		break;
+	case 2:
