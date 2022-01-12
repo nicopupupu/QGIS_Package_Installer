@@ -1371,3 +1371,376 @@ void BitXor(int sindex, int amount_of_args, ValueType & result)
 		Error( err_overflow );
 		break;
 	case 2:
+		Error( err_improper_argument );
+		break;
+	}
+}
+
+
+void Sum(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args == 0 )
+		Error( err_improper_amount_of_arguments );
+
+	result = stack[sindex].value;
+
+	for(int i=1 ; i<amount_of_args ; ++i )
+		if( result.Add( stack[ sindex + i*2 ].value ) )
+			Error( err_overflow );
+}	
+
+void Avg(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args == 0 )
+		Error( err_improper_amount_of_arguments );
+
+	result = stack[sindex].value;
+
+	for(int i=1 ; i<amount_of_args ; ++i )
+		if( result.Add( stack[ sindex + i*2 ].value ) )
+			Error( err_overflow );
+
+	if( result.Div( amount_of_args ) )
+		Error( err_overflow );
+}	
+
+
+void Frac(int sindex, int amount_of_args, ValueType & result)
+{
+	if( amount_of_args != 1 )
+		Error( err_improper_amount_of_arguments );
+
+	result = stack[sindex].value;
+	result.RemainFraction();
+}
+
+
+
+
+/*!
+	we use such a method because 'wvsprintf' is not everywhere defined
+*/
+void Sprintf(char * buffer, int par)
+{
+char buf[30]; // char, not wchar_t
+int i;
+
+	#ifdef _MSC_VER
+	#pragma warning( disable: 4996 )
+	//warning C4996: 'sprintf': This function or variable may be unsafe.
+	#endif
+
+	sprintf(buf, "%d", par);
+	for(i=0 ; buf[i] != 0 ; ++i)
+		buffer[i] = buf[i];
+
+	buffer[i] = 0;
+
+	#ifdef _MSC_VER
+	#pragma warning( default: 4996 )
+	#endif
+}
+
+
+
+
+/*!
+	this method returns the value from a user-defined function
+
+	(look at the description in 'CallFunction(...)')
+*/
+bool GetValueOfUserDefinedFunction(const std::string & function_name, int amount_of_args, int sindex)
+{
+	if( !puser_functions )
+		return false;
+
+	const char * string_value;
+	int param;
+
+	if( puser_functions->GetValueAndParam(function_name, &string_value, &param) != err_ok )
+		return false;
+
+	if( param != amount_of_args )
+		Error( err_improper_amount_of_arguments );
+
+
+	FunctionLocalVariables local_variables;
+
+	if( amount_of_args > 0 )
+	{
+		char buffer[30];
+
+		// x = x1
+		buffer[0] = 'x';
+		buffer[1] = 0;
+		local_variables.insert( std::make_pair(buffer, stack[sindex].value) );
+
+		for(int i=0 ; i<amount_of_args ; ++i)
+		{
+			buffer[0] = 'x';
+			Sprintf(buffer+1, i+1);
+			local_variables.insert( std::make_pair(buffer, stack[sindex + i*2].value) );
+		}
+	}
+
+	stack[sindex-1].value = RecurrenceParsingVariablesOrFunction(false, function_name, string_value, &local_variables);
+	calculated = true;
+
+return true;
+}
+
+
+/*
+	we're calling a specific function
+
+	function_name  - name of the function
+	amount_of_args - how many arguments there are on our stack
+					 (function must check whether this is a correct value or not)
+	sindex         - index of the first argument on the stack (sindex is greater than zero)
+  					 if there aren't any arguments on the stack 'sindex' pointing on
+					 a non existend element (after the first bracket)
+
+	result will be stored in 'stack[sindex-1].value'
+	(we don't have to set the correct type of this element, it'll be set later)
+*/
+void CallFunction(const std::string & function_name, int amount_of_args, int sindex)
+{
+	if( GetValueOfUserDefinedFunction(function_name, amount_of_args, sindex) )
+		return;
+
+	typename FunctionsTable::iterator i = functions_table.find( function_name );
+
+	if( i == functions_table.end() )
+		Error( err_unknown_function );
+
+	/*
+		calling the specify function
+	*/
+	(this->*(i->second))(sindex, amount_of_args, stack[sindex-1].value);
+	calculated = true;
+}
+
+
+
+
+
+/*!
+	inserting a function to the functions' table
+
+	function_name - name of the function
+	pf - pointer to the function (to the wrapper)
+*/
+void InsertFunctionToTable(const char * function_name, pfunction pf)
+{
+	std::string str;
+	Misc::AssignString(str, function_name);
+
+	functions_table.insert( std::make_pair(str, pf) );
+}
+
+
+
+/*!
+	inserting a function to the variables' table
+	(this function returns value of variable)
+
+	variable_name - name of the function
+	pf - pointer to the function
+*/
+void InsertVariableToTable(const char * variable_name, pfunction_var pf)
+{
+	std::string str;
+	Misc::AssignString(str, variable_name);
+
+	variables_table.insert( std::make_pair(str, pf) );
+}
+
+
+/*!
+	this method creates the table of functions
+*/
+void CreateFunctionsTable()
+{
+	InsertFunctionToTable("gamma",		&Parser<ValueType>::Gamma);
+	InsertFunctionToTable("factorial",	&Parser<ValueType>::Factorial);
+	InsertFunctionToTable("abs",   		&Parser<ValueType>::Abs);
+	InsertFunctionToTable("sin",   		&Parser<ValueType>::Sin);
+	InsertFunctionToTable("cos",   		&Parser<ValueType>::Cos);
+	InsertFunctionToTable("tan",   		&Parser<ValueType>::Tan);
+	InsertFunctionToTable("tg",			&Parser<ValueType>::Tan);
+	InsertFunctionToTable("cot",  		&Parser<ValueType>::Cot);
+	InsertFunctionToTable("ctg",  		&Parser<ValueType>::Cot);
+	InsertFunctionToTable("int",	   	&Parser<ValueType>::Int);
+	InsertFunctionToTable("round",	 	&Parser<ValueType>::Round);
+	InsertFunctionToTable("ln",			&Parser<ValueType>::Ln);
+	InsertFunctionToTable("log",	   	&Parser<ValueType>::Log);
+	InsertFunctionToTable("exp",	   	&Parser<ValueType>::Exp);
+	InsertFunctionToTable("max",	   	&Parser<ValueType>::Max);
+	InsertFunctionToTable("min",	   	&Parser<ValueType>::Min);
+	InsertFunctionToTable("asin",   	&Parser<ValueType>::ASin);
+	InsertFunctionToTable("acos",   	&Parser<ValueType>::ACos);
+	InsertFunctionToTable("atan",   	&Parser<ValueType>::ATan);
+	InsertFunctionToTable("atg",	   	&Parser<ValueType>::ATan);
+	InsertFunctionToTable("acot",   	&Parser<ValueType>::ACot);
+	InsertFunctionToTable("actg",   	&Parser<ValueType>::ACot);
+	InsertFunctionToTable("sgn",   		&Parser<ValueType>::Sgn);
+	InsertFunctionToTable("mod",   		&Parser<ValueType>::Mod);
+	InsertFunctionToTable("if",   		&Parser<ValueType>::If);
+	InsertFunctionToTable("or",   		&Parser<ValueType>::Or);
+	InsertFunctionToTable("and",  		&Parser<ValueType>::And);
+	InsertFunctionToTable("not",  		&Parser<ValueType>::Not);
+	InsertFunctionToTable("degtorad",	&Parser<ValueType>::DegToRad);
+	InsertFunctionToTable("radtodeg",	&Parser<ValueType>::RadToDeg);
+	InsertFunctionToTable("degtodeg",	&Parser<ValueType>::DegToDeg);
+	InsertFunctionToTable("gradtorad",	&Parser<ValueType>::GradToRad);
+	InsertFunctionToTable("radtograd",	&Parser<ValueType>::RadToGrad);
+	InsertFunctionToTable("degtograd",	&Parser<ValueType>::DegToGrad);
+	InsertFunctionToTable("gradtodeg",	&Parser<ValueType>::GradToDeg);
+	InsertFunctionToTable("ceil",		&Parser<ValueType>::Ceil);
+	InsertFunctionToTable("floor",		&Parser<ValueType>::Floor);
+	InsertFunctionToTable("sqrt",		&Parser<ValueType>::Sqrt);
+	InsertFunctionToTable("sinh",		&Parser<ValueType>::Sinh);
+	InsertFunctionToTable("cosh",		&Parser<ValueType>::Cosh);
+	InsertFunctionToTable("tanh",		&Parser<ValueType>::Tanh);
+	InsertFunctionToTable("tgh",		&Parser<ValueType>::Tanh);
+	InsertFunctionToTable("coth",		&Parser<ValueType>::Coth);
+	InsertFunctionToTable("ctgh",		&Parser<ValueType>::Coth);
+	InsertFunctionToTable("root",		&Parser<ValueType>::Root);
+	InsertFunctionToTable("asinh",		&Parser<ValueType>::ASinh);
+	InsertFunctionToTable("acosh",		&Parser<ValueType>::ACosh);
+	InsertFunctionToTable("atanh",		&Parser<ValueType>::ATanh);
+	InsertFunctionToTable("atgh",		&Parser<ValueType>::ATanh);
+	InsertFunctionToTable("acoth",		&Parser<ValueType>::ACoth);
+	InsertFunctionToTable("actgh",		&Parser<ValueType>::ACoth);
+	InsertFunctionToTable("bitand",		&Parser<ValueType>::BitAnd);
+	InsertFunctionToTable("bitor",		&Parser<ValueType>::BitOr);
+	InsertFunctionToTable("bitxor",		&Parser<ValueType>::BitXor);
+	InsertFunctionToTable("band",		&Parser<ValueType>::BitAnd);
+	InsertFunctionToTable("bor",		&Parser<ValueType>::BitOr);
+	InsertFunctionToTable("bxor",		&Parser<ValueType>::BitXor);
+	InsertFunctionToTable("sum",		&Parser<ValueType>::Sum);
+	InsertFunctionToTable("avg",		&Parser<ValueType>::Avg);
+	InsertFunctionToTable("frac",		&Parser<ValueType>::Frac);
+}
+
+
+/*!
+	this method creates the table of variables
+*/
+void CreateVariablesTable()
+{
+	InsertVariableToTable("pi", &ValueType::SetPi);
+	InsertVariableToTable("e",  &ValueType::SetE);
+}
+
+
+/*!
+	converting from a big letter to a small one
+*/
+int ToLowerCase(int c)
+{
+	if( c>='A' && c<='Z' )
+		return c - 'A' + 'a';
+
+return c;
+}
+
+
+/*!
+	this method read the name of a variable or a function
+	
+		'result' will be the name of a variable or a function
+		function return 'false' if this name is the name of a variable
+		or function return 'true' if this name is the name of a function
+
+	what should be returned is tested just by a '(' character that means if there's
+	a '(' character after a name that function returns 'true'
+*/
+bool ReadName(std::string & result)
+{
+int character;
+
+
+	result.erase();
+	character = *pstring;
+
+	/*
+		the first letter must be from range 'a' - 'z' or 'A' - 'Z'
+	*/
+	if( ! (( character>='a' && character<='z' ) || ( character>='A' && character<='Z' )) )
+		Error( err_unknown_character );
+
+
+	do
+	{
+		result   += static_cast<char>( character );
+		character = * ++pstring;
+	}
+	while(	(character>='a' && character<='z') ||
+			(character>='A' && character<='Z') ||
+			(character>='0' && character<='9') ||
+			character=='_' );
+	
+
+	SkipWhiteCharacters();
+	
+
+	/*
+		if there's a character '(' that means this name is a name of a function
+	*/
+	if( *pstring == '(' )
+	{
+		++pstring;
+		return true;
+	}
+	
+	
+return false;
+}
+
+
+/*!
+	we're checking whether the first character is '-' or '+'
+	if it is we'll return 'true' and if it is equally '-' we'll set the 'sign' member of 'result'
+*/
+bool TestSign(Item & result)
+{
+	SkipWhiteCharacters();
+	result.sign = false;
+
+	if( *pstring == '-' || *pstring == '+' )
+	{
+		if( *pstring == '-' )
+			result.sign = true;
+
+		++pstring;
+
+	return true;
+	}
+
+return false;
+}
+
+
+/*!
+	we're reading the name of a variable or a function
+	if is there a function we'll return 'true'
+*/
+bool ReadVariableOrFunction(Item & result)
+{
+std::string name;
+bool is_it_name_of_function = ReadName(name);
+
+	if( is_it_name_of_function )
+	{
+		/*
+			we've read the name of a function
+		*/
+		result.function_name = name;
+		result.type     = Item::first_bracket;
+		result.function = true;
+	}
+	else
+	{
+		/*
+			we've read the name of a variable and we're getting its value now
