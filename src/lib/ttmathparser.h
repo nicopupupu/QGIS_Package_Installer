@@ -1744,3 +1744,371 @@ bool is_it_name_of_function = ReadName(name);
 	{
 		/*
 			we've read the name of a variable and we're getting its value now
+		*/
+		result.value = GetValueOfVariable( name );
+	}
+
+return is_it_name_of_function;
+}
+
+
+
+
+/*!
+	we're reading a numerical value directly from the string
+*/
+void ReadValue(Item & result, int reading_base)
+{
+const char * new_stack_pointer;
+bool value_read;
+Conv conv;
+
+	conv.base   = reading_base;
+	conv.comma  = comma;
+	conv.comma2 = comma2;
+	conv.group  = group;
+
+	uint carry = result.value.FromString(pstring, conv, &new_stack_pointer, &value_read);
+	pstring    = new_stack_pointer;
+
+	if( carry )
+		Error( err_overflow );
+
+	if( !value_read )
+		Error( err_unknown_character );
+}
+
+
+/*!
+	this method returns true if 'character' is a proper first digit for the value (or a comma -- can be first too)
+*/
+bool ValueStarts(int character, int base)
+{
+	if( character == comma )
+		return true;
+
+	if( comma2!=0 && character==comma2 )
+		return true;
+
+	if( Misc::CharToDigit(character, base) != -1 )
+		return true;
+
+return false;
+}
+
+
+/*!
+	we're reading the item
+  
+	return values:
+		0 - all ok, the item is successfully read
+		1 - the end of the string (the item is not read)
+		2 - the final bracket ')'
+*/
+int ReadValueVariableOrFunction(Item & result)
+{
+bool it_was_sign = false;
+int  character;
+
+
+	if( TestSign(result) )
+		// 'result.sign' was set as well
+		it_was_sign = true;
+
+	SkipWhiteCharacters();
+	character = ToLowerCase( *pstring );
+
+
+	if( character == 0 )
+	{
+		if( it_was_sign )
+			// at the end of the string a character like '-' or '+' has left
+			Error( err_unexpected_end );
+
+		// there's the end of the string here
+		return 1;
+	}
+	else
+	if( character == '(' )
+	{
+		// we've got a normal bracket (not a function)
+		result.type = Item::first_bracket;
+		result.function = false;
+		++pstring;
+
+	return 0;
+	}
+	else
+	if( character == ')' )
+	{
+		// we've got a final bracket
+		// (in this place we can find a final bracket only when there are empty brackets
+		// without any values inside or with a sign '-' or '+' inside)
+
+		if( it_was_sign )
+			Error( err_unexpected_final_bracket );
+
+		result.type = Item::last_bracket;
+
+		// we don't increment 'pstring', this final bracket will be read next by the 
+		// 'ReadOperatorAndCheckFinalBracket(...)' method
+
+	return 2;
+	}
+	else
+	if( character == '#' )
+	{
+		++pstring;
+		SkipWhiteCharacters();
+
+		// after '#' character we do not allow '-' or '+' (can be white characters)
+		if(	ValueStarts(*pstring, 16) )
+			ReadValue( result, 16 );
+		else
+			Error( err_unknown_character );
+	}
+	else
+	if( character == '&' )
+	{
+		++pstring;
+		SkipWhiteCharacters();
+
+		// after '&' character we do not allow '-' or '+' (can be white characters)
+		if(	ValueStarts(*pstring, 2) )
+			ReadValue( result, 2 );
+		else
+			Error( err_unknown_character );
+	}
+	else
+	if(	ValueStarts(character, base) )
+	{
+		ReadValue( result, base );
+	}
+	else
+	if( character>='a' && character<='z' )
+	{
+		if( ReadVariableOrFunction(result) )
+			// we've read the name of a function
+			return 0;
+	}
+	else
+		Error( err_unknown_character );
+
+
+
+	/*
+		we've got a value in the 'result'
+		this value is from a variable or directly from the string
+	*/
+	result.type = Item::numerical_value;
+	
+	if( result.sign )
+	{
+		result.value.ChangeSign();
+		result.sign = false;
+	}
+	
+
+return 0;
+}
+
+
+void InsertOperatorToTable(const char * name, typename MatOperator::Type type)
+{
+	operators_table.insert( std::make_pair(std::string(name), type) );
+}
+
+
+/*!
+	this method creates the table of operators
+*/
+void CreateMathematicalOperatorsTable()
+{
+	InsertOperatorToTable("||", MatOperator::lor);
+	InsertOperatorToTable("&&", MatOperator::land);
+	InsertOperatorToTable("!=", MatOperator::neq);
+	InsertOperatorToTable("==", MatOperator::eq);
+	InsertOperatorToTable(">=", MatOperator::get);
+	InsertOperatorToTable("<=", MatOperator::let);
+	InsertOperatorToTable(">",  MatOperator::gt);
+	InsertOperatorToTable("<",  MatOperator::lt);
+	InsertOperatorToTable("-",  MatOperator::sub);
+	InsertOperatorToTable("+",  MatOperator::add);
+	InsertOperatorToTable("/",  MatOperator::div);
+	InsertOperatorToTable("*",  MatOperator::mul);
+	InsertOperatorToTable("^",  MatOperator::pow);
+}
+
+
+/*!
+	returns true if 'str2' is the substring of str1
+
+	e.g.
+	true when str1="test" and str2="te"
+*/
+bool IsSubstring(const std::string & str1, const std::string & str2)
+{
+	if( str2.length() > str1.length() )
+		return false;
+
+	for(typename std::string::size_type i=0 ; i<str2.length() ; ++i)
+		if( str1[i] != str2[i] )
+			return false;
+
+return true;
+}
+
+
+/*!
+	this method reads a mathematical (or logical) operator
+*/
+void ReadMathematicalOperator(Item & result)
+{
+std::string oper;
+typename OperatorsTable::iterator iter_old, iter_new;
+
+	iter_old = operators_table.end();
+
+	for( ; true ; ++pstring )
+	{
+		oper += *pstring;
+		iter_new = operators_table.lower_bound(oper);
+		
+		if( iter_new == operators_table.end() || !IsSubstring(iter_new->first, oper) )
+		{
+			oper.erase( --oper.end() ); // we've got mininum one element
+
+			if( iter_old != operators_table.end() && iter_old->first == oper )
+			{
+				result.type = Item::mat_operator;
+				result.moperator.SetType( iter_old->second );
+				break;
+			}
+			
+			Error( err_unknown_operator );
+		}
+	
+		iter_old = iter_new;
+	}
+}
+
+
+/*!
+	this method makes a calculation for the percentage operator
+	e.g.
+	1000-50% = 1000-(1000*0,5) = 500
+*/
+void OperatorPercentage()
+{
+	if( stack_index < 3										||
+		stack[stack_index-1].type != Item::numerical_value	||
+		stack[stack_index-2].type != Item::mat_operator		||
+		stack[stack_index-3].type != Item::numerical_value	)
+		Error(err_percent_from);
+
+	++pstring;
+	SkipWhiteCharacters();
+
+	uint c = 0;
+	c += stack[stack_index-1].value.Div(100);
+	c += stack[stack_index-1].value.Mul(stack[stack_index-3].value);
+
+	if( c )
+		Error(err_overflow);
+}
+
+
+/*!
+	this method reads a mathematic operators
+	or the final bracket or the semicolon operator
+
+	return values:
+		0 - ok
+		1 - the string is finished
+*/
+int ReadOperator(Item & result)
+{
+	SkipWhiteCharacters();
+
+	if( *pstring == '%' )
+		OperatorPercentage();
+
+
+	if( *pstring == 0 )
+		return 1;
+	else
+	if( *pstring == ')' )
+	{
+		result.type = Item::last_bracket;
+		++pstring;
+	}
+	else
+	if( *pstring == ';' || (param_sep!=0 && *pstring==param_sep) )
+	{
+		result.type = Item::semicolon;
+		++pstring;
+	}
+	else
+	if( (*pstring>='a' && *pstring<='z') || (*pstring>='A' && *pstring<='Z') )
+	{
+		// short mul (without any operators)
+
+		result.type = Item::mat_operator;
+		result.moperator.SetType( MatOperator::shortmul );
+	}
+	else
+		ReadMathematicalOperator(result);
+
+return 0;
+}
+
+
+
+/*!
+	this method is making the standard mathematic operation like '-' '+' '*' '/' and '^'
+
+	the operation is made between 'value1' and 'value2'
+	the result of this operation is stored in the 'value1'
+*/
+void MakeStandardMathematicOperation(ValueType & value1, typename MatOperator::Type mat_operator,
+									const ValueType & value2)
+{
+uint res;
+
+	calculated = true;
+
+	switch( mat_operator )
+	{
+	case MatOperator::land:
+		(!value1.IsZero() && !value2.IsZero()) ? value1.SetOne() : value1.SetZero();
+		break;
+
+	case MatOperator::lor:
+		(!value1.IsZero() || !value2.IsZero()) ? value1.SetOne() : value1.SetZero();
+		break;
+
+	case MatOperator::eq:
+		(value1 == value2) ? value1.SetOne() : value1.SetZero();
+		break;
+
+	case MatOperator::neq:
+		(value1 != value2) ? value1.SetOne() : value1.SetZero();
+		break;
+
+	case MatOperator::lt:
+		(value1 < value2) ? value1.SetOne() : value1.SetZero();
+		break;
+
+	case MatOperator::gt:
+		(value1 > value2) ? value1.SetOne() : value1.SetZero();
+		break;
+
+	case MatOperator::let:
+		(value1 <= value2) ? value1.SetOne() : value1.SetZero();
+		break;
+
+	case MatOperator::get:
+		(value1 >= value2) ? value1.SetOne() : value1.SetZero();
+		break;
+
+	case MatOperator::sub:
