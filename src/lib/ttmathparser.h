@@ -2112,3 +2112,350 @@ uint res;
 		break;
 
 	case MatOperator::sub:
+		if( value1.Sub(value2) ) Error( err_overflow );
+		break;
+
+	case MatOperator::add:
+		if( value1.Add(value2) ) Error( err_overflow );
+		break;
+
+	case MatOperator::mul:
+	case MatOperator::shortmul:
+		if( value1.Mul(value2) ) Error( err_overflow );
+		break;
+
+	case MatOperator::div:
+		if( value2.IsZero() )    Error( err_division_by_zero );
+		if( value1.Div(value2) ) Error( err_overflow );
+		break;
+
+	case MatOperator::pow:
+		res = value1.Pow( value2 );
+
+		if( res == 1 ) Error( err_overflow );
+		else
+		if( res == 2 ) Error( err_improper_argument );
+
+		break;
+
+	default:
+		/*
+			on the stack left an unknown operator but we had to recognize its before
+			that means there's an error in our algorithm
+		*/
+		Error( err_internal_error );
+	}
+}
+
+
+
+
+/*!
+	this method is trying to roll the stack up with the operator's priority
+
+	for example if there are:
+		"1 - 2 +" 
+	we can subtract "1-2" and the result store on the place where is '1' and copy the last
+	operator '+', that means there'll be '-1+' on our stack
+
+	but if there are:
+		"1 - 2 *"
+	we can't roll the stack up because the operator '*' has greater priority than '-'
+*/
+void TryRollingUpStackWithOperatorPriority()
+{
+	while(	stack_index>=4 &&
+			stack[stack_index-4].type == Item::numerical_value &&
+			stack[stack_index-3].type == Item::mat_operator    &&
+			stack[stack_index-2].type == Item::numerical_value &&
+			stack[stack_index-1].type == Item::mat_operator    &&
+			(
+				(
+					// the first operator has greater priority
+					stack[stack_index-3].moperator.GetPriority() > stack[stack_index-1].moperator.GetPriority()
+				) ||
+				(
+					// or both operators have the same priority and the first operator is not right associative
+					stack[stack_index-3].moperator.GetPriority() == stack[stack_index-1].moperator.GetPriority() &&
+					stack[stack_index-3].moperator.GetAssoc()    == MatOperator::non_right
+				)
+			)
+		 )
+	{
+		MakeStandardMathematicOperation(stack[stack_index-4].value,
+										stack[stack_index-3].moperator.GetType(),
+										stack[stack_index-2].value);
+
+
+		/*
+			copying the last operator and setting the stack pointer to the correct value
+		*/
+		stack[stack_index-3] = stack[stack_index-1];
+		stack_index -= 2;
+	}
+}
+
+
+/*!
+	this method is trying to roll the stack up without testing any operators
+
+	for example if there are:
+		"1 - 2" 
+	there'll be "-1" on our stack
+*/
+void TryRollingUpStack()
+{
+	while(	stack_index >= 3 &&
+			stack[stack_index-3].type == Item::numerical_value &&
+			stack[stack_index-2].type == Item::mat_operator &&
+			stack[stack_index-1].type == Item::numerical_value )
+	{
+		MakeStandardMathematicOperation(	stack[stack_index-3].value,
+											stack[stack_index-2].moperator.GetType(),
+											stack[stack_index-1].value );
+
+		stack_index -= 2;
+	}
+}
+
+
+/*!
+	this method is reading a value or a variable or a function
+	(the normal first bracket as well) and push it into the stack
+*/
+int ReadValueVariableOrFunctionAndPushItIntoStack(Item & temp)
+{
+int code = ReadValueVariableOrFunction( temp );
+	
+	if( code == 0 )
+	{
+		if( stack_index < stack.size() )
+			stack[stack_index] = temp;
+		else
+			stack.push_back( temp );
+
+		++stack_index;
+	}
+
+	if( code == 2 )
+		// there was a final bracket, we didn't push it into the stack 
+		// (it'll be read by the 'ReadOperatorAndCheckFinalBracket' method next)
+		code = 0;
+
+
+return code;
+}
+
+
+
+/*!
+	this method calculate how many parameters there are on the stack
+	and the index of the first parameter
+
+	if there aren't any parameters on the stack this method returns
+	'size' equals zero and 'index' pointing after the first bracket
+	(on non-existend element)
+*/
+void HowManyParameters(int & size, int & index)
+{
+	size  = 0;
+	index = stack_index;
+
+	if( index == 0 )
+		// we haven't put a first bracket on the stack
+		Error( err_unexpected_final_bracket );
+
+
+	if( stack[index-1].type == Item::first_bracket )
+		// empty brackets
+		return;
+
+	for( --index ; index>=1 ; index-=2 )
+	{
+		if( stack[index].type != Item::numerical_value )
+		{
+			/*
+				this element must be 'numerical_value', if not that means 
+				there's an error in our algorithm
+			*/
+			Error( err_internal_error );
+		}
+
+		++size;
+
+		if( stack[index-1].type != Item::semicolon )
+			break;
+	}
+
+	if( index<1 || stack[index-1].type != Item::first_bracket )
+	{
+		/*
+			we haven't put a first bracket on the stack
+		*/
+		Error( err_unexpected_final_bracket );
+	}
+}
+
+
+/*!
+	this method is being called when the final bracket ')' is being found
+
+	this method's rolling the stack up, counting how many parameters there are
+	on the stack and if there was a function it's calling the function
+*/
+void RollingUpFinalBracket()
+{
+int amount_of_parameters;
+int index;
+
+	
+	if( stack_index<1 ||
+		(stack[stack_index-1].type != Item::numerical_value &&
+		 stack[stack_index-1].type != Item::first_bracket)
+	  )
+		Error( err_unexpected_final_bracket );
+	
+
+	TryRollingUpStack();
+	HowManyParameters(amount_of_parameters, index);
+
+	// 'index' will be greater than zero
+	// 'amount_of_parameters' can be zero
+
+
+	if( amount_of_parameters==0 && !stack[index-1].function )
+		Error( err_unexpected_final_bracket );
+
+
+	bool was_sign = stack[index-1].sign;
+
+
+	if( stack[index-1].function )
+	{
+		// the result of a function will be on 'stack[index-1]'
+		// and then at the end we'll set the correct type (numerical value) of this element
+		CallFunction(stack[index-1].function_name, amount_of_parameters, index);
+	}
+	else
+	{
+		/*
+			there was a normal bracket (not a funcion)
+		*/
+		if( amount_of_parameters != 1 )
+			Error( err_unexpected_semicolon_operator );
+
+
+		/*
+			in the place where is the bracket we put the result
+		*/
+		stack[index-1] = stack[index];
+	}
+
+
+	/*
+		if there was a '-' character before the first bracket
+		we change the sign of the expression
+	*/
+	stack[index-1].sign = false;
+
+	if( was_sign )
+		stack[index-1].value.ChangeSign();
+
+	stack[index-1].type = Item::numerical_value;
+
+
+	/*
+		the pointer of the stack will be pointing on the next (non-existing now) element
+	*/
+	stack_index = index;
+}
+
+
+/*!
+	this method is putting the operator on the stack
+*/
+
+void PushOperatorIntoStack(Item & temp)
+{
+	if( stack_index < stack.size() )
+		stack[stack_index] = temp;
+	else
+		stack.push_back( temp );
+
+	++stack_index;
+}
+
+
+
+/*!
+	this method is reading a operator and if it's a final bracket
+	it's calling RollingUpFinalBracket() and reading a operator again
+*/
+int ReadOperatorAndCheckFinalBracket(Item & temp)
+{
+	do
+	{
+		if( ReadOperator(temp) == 1 )
+		{
+			/*
+				the string is finished
+			*/
+		return 1;
+		}
+
+		if( temp.type == Item::last_bracket )
+			RollingUpFinalBracket();
+
+	}
+	while( temp.type == Item::last_bracket );
+
+return 0;
+}
+
+
+/*!
+	we check wheter there are only numerical value's or 'semicolon' operators on the stack
+*/
+void CheckIntegrityOfStack()
+{
+	for(unsigned int i=0 ; i<stack_index; ++i)
+	{
+		if( stack[i].type != Item::numerical_value &&
+			stack[i].type != Item::semicolon)
+		{
+			/*
+				on the stack we must only have 'numerical_value' or 'semicolon' operator
+				if there is something another that means
+				we probably didn't close any of the 'first' bracket
+			*/
+			Error( err_stack_not_clear );
+		}
+	}
+}
+
+
+
+/*!
+	the main loop of parsing
+*/
+void Parse()
+{
+Item item;	
+int result_code;
+
+
+	while( true )
+	{
+		if( pstop_calculating && pstop_calculating->WasStopSignal() )
+			Error( err_interrupt );
+
+		result_code = ReadValueVariableOrFunctionAndPushItIntoStack( item );
+
+		if( result_code == 0 )
+		{
+			if( item.type == Item::first_bracket )
+				continue;
+			
+			result_code = ReadOperatorAndCheckFinalBracket( item );
+		}
+	
