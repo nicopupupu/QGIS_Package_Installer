@@ -2459,3 +2459,320 @@ int result_code;
 			result_code = ReadOperatorAndCheckFinalBracket( item );
 		}
 	
+		
+		if( result_code==1 || item.type==Item::semicolon )
+		{
+			/*
+				the string is finished or the 'semicolon' operator has appeared
+			*/
+
+			if( stack_index == 0 )
+				Error( err_nothing_has_read );
+			
+			TryRollingUpStack();
+
+			if( result_code == 1 )
+			{
+				CheckIntegrityOfStack();
+
+			return;
+			}
+		}			
+	
+
+		PushOperatorIntoStack( item );
+		TryRollingUpStackWithOperatorPriority();
+	}
+}
+
+/*!
+	this method is called at the end of the parsing process
+
+	on our stack we can have another value than 'numerical_values' for example
+	when someone use the operator ';' in the global scope or there was an error during
+	parsing and the parser hasn't finished its job
+
+	if there was an error the stack is cleaned up now
+	otherwise we resize stack and leave on it only 'numerical_value' items
+*/
+void NormalizeStack()
+{
+	if( error!=err_ok || stack_index==0 )
+	{
+		stack.clear();
+		return;
+	}
+	
+	
+	/*
+		'stack_index' tell us how many elements there are on the stack,
+		we must resize the stack now because 'stack_index' is using only for parsing
+		and stack has more (or equal) elements than value of 'stack_index'
+	*/
+	stack.resize( stack_index );
+
+	for(uint i=stack_index-1 ; i!=uint(-1) ; --i)
+	{
+		if( stack[i].type != Item::numerical_value )
+			stack.erase( stack.begin() + i );
+	}
+}
+
+
+public:
+
+
+/*!
+	the default constructor
+*/
+Parser(): default_stack_size(100)
+{
+	pstop_calculating = 0;
+	puser_variables   = 0;
+	puser_functions   = 0;
+	pfunction_local_variables = 0;
+	base              = 10;
+	deg_rad_grad      = 1;
+	error             = err_ok;
+	group             = 0;
+	comma             = '.';
+	comma2            = ',';
+	param_sep         = 0;
+
+	CreateFunctionsTable();
+	CreateVariablesTable();
+	CreateMathematicalOperatorsTable();
+}
+
+
+/*!
+	the assignment operator
+*/
+Parser<ValueType> & operator=(const Parser<ValueType> & p)
+{
+	pstop_calculating = p.pstop_calculating;
+	puser_variables   = p.puser_variables;
+	puser_functions   = p.puser_functions;
+	pfunction_local_variables = 0;
+	base              = p.base;
+	deg_rad_grad      = p.deg_rad_grad;
+	error             = p.error;
+	group             = p.group;
+	comma             = p.comma;
+	comma2            = p.comma2;
+	param_sep         = p.param_sep;
+
+	/*
+		we don't have to call 'CreateFunctionsTable()' etc.
+		we can only copy these tables
+	*/
+	functions_table   = p.functions_table;
+	variables_table   = p.variables_table;
+	operators_table   = p.operators_table;
+
+	visited_variables = p.visited_variables;
+	visited_functions = p.visited_functions;
+
+return *this;
+}
+
+
+/*!
+	the copying constructor
+*/
+Parser(const Parser<ValueType> & p): default_stack_size(p.default_stack_size)
+{
+	operator=(p);
+}
+
+
+/*!
+	the new base of mathematic system
+	default is 10
+*/
+void SetBase(int b)
+{
+	if( b>=2 && b<=16 )
+		base = b;
+}
+
+
+/*!
+	the unit of angles used in: sin,cos,tan,cot,asin,acos,atan,acot
+	0 - deg
+	1 - rad (default)
+	2 - grad
+*/
+void SetDegRadGrad(int angle)
+{
+	if( angle >= 0 || angle <= 2 )
+		deg_rad_grad = angle;
+}
+
+/*!
+	this method sets a pointer to the object which tell us whether we should stop
+	calculations
+*/
+void SetStopObject(const volatile StopCalculating * ps)
+{
+	pstop_calculating = ps;
+}
+
+
+/*!
+	this method sets the new table of user-defined variables
+	if you don't want any other variables just put zero value into the 'puser_variables' variable
+
+	(you can have only one table at the same time)
+*/
+void SetVariables(const Objects * pv)
+{
+	puser_variables = pv;
+}
+
+
+/*!
+	this method sets the new table of user-defined functions
+	if you don't want any other functions just put zero value into the 'puser_functions' variable
+
+	(you can have only one table at the same time)
+*/
+void SetFunctions(const Objects * pf)
+{
+	puser_functions = pf;
+}
+
+
+/*!
+	setting the group character
+	default zero (not used)
+*/
+void SetGroup(int g)
+{
+	group = g;
+}
+
+
+/*!
+	setting the main comma operator and the additional comma operator
+	the additional operator can be zero (which means it is not used)
+	default are: '.' and ','
+*/
+void SetComma(int c, int c2 = 0)
+{
+	comma  = c;
+	comma2 = c2;
+}
+
+
+/*!
+	setting an additional character which is used as a parameters separator
+	the main parameters separator is a semicolon (is used always)
+
+	this character is used also as a global separator
+*/
+void SetParamSep(int s)
+{
+	param_sep = s;
+}
+
+
+/*!
+	the main method using for parsing string
+*/
+ErrorCode Parse(const char * str)
+{
+	stack_index  = 0;
+	pstring      = str;
+	error        = err_ok;
+	calculated   = false;
+
+	stack.resize( default_stack_size );
+
+	try
+	{
+		Parse();
+	}
+	catch(ErrorCode c)
+	{
+		error = c;
+		calculated = false;
+	}
+
+	NormalizeStack();
+
+return error;
+}
+
+
+/*!
+	the main method using for parsing string
+*/
+ErrorCode Parse(const std::string & str)
+{
+	return Parse(str.c_str());
+}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+/*!
+	the main method using for parsing string
+*/
+ErrorCode Parse(const wchar_t * str)
+{
+	Misc::AssignString(wide_to_ansi, str);
+
+return Parse(wide_to_ansi.c_str());
+
+	// !! wide_to_ansi clearing can be added here
+}
+
+
+/*!
+	the main method using for parsing string
+*/
+ErrorCode Parse(const std::wstring & str)
+{
+	return Parse(str.c_str());
+}
+
+#endif
+
+
+/*!
+	this method returns true is something was calculated
+	(at least one mathematical operator was used or a function or variable)
+	e.g. true if the string to Parse() looked like this:
+	"1+1"
+	"2*3"
+	"sin(5)"
+
+	if the string was e.g. "678" the result is false
+*/
+bool Calculated()
+{
+	return calculated;
+}
+
+
+/*!
+	initializing coefficients used when calculating the gamma (or factorial) function
+	this speed up the next calculations
+	you don't have to call this method explicitly
+	these coefficients will be calculated when needed
+*/
+void InitCGamma()
+{
+	cgamma.InitAll();
+}
+
+
+};
+
+
+
+} // namespace
+
+
+#endif
