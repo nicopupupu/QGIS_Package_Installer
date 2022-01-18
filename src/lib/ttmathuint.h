@@ -430,3 +430,345 @@ private:
 		if( all_words > 0 )  
 		{
 			// 0 < all_words < value_size
+	
+			sint first, second;
+			last_c = table[value_size - all_words] & 1; // all_words is greater than 0
+
+			// copying the first part of the value
+			for(first = value_size-1, second=first-all_words ; second>=0 ; --first, --second)
+				table[first] = table[second];
+
+			// setting the rest to 'c'
+			for( ; first>=0 ; --first )
+				table[first] = mask;
+		}
+
+		TTMATH_LOG("UInt::RclMoveAllWords")
+	}
+	
+public:
+
+	/*!
+		moving all bits into the left side 'bits' times
+		return value <- this <- C
+
+		bits is from a range of <0, man * TTMATH_BITS_PER_UINT>
+		or it can be even bigger then all bits will be set to 'c'
+
+		the value c will be set into the lowest bits
+		and the method returns state of the last moved bit
+	*/
+	uint Rcl(uint bits, uint c=0)
+	{
+	uint last_c    = 0;
+	uint rest_bits = bits;
+
+		if( bits == 0 )
+			return 0;
+
+		if( bits >= TTMATH_BITS_PER_UINT )
+			RclMoveAllWords(rest_bits, last_c, bits, c);
+
+		if( rest_bits == 0 )
+		{
+			TTMATH_LOG("UInt::Rcl")
+			return last_c;
+		}
+
+		// rest_bits is from 1 to TTMATH_BITS_PER_UINT-1 now
+		if( rest_bits == 1 )
+		{
+			last_c = Rcl2_one(c);
+		}
+		else if( rest_bits == 2 )
+		{
+			// performance tests showed that for rest_bits==2 it's better to use Rcl2_one twice instead of Rcl2(2,c)
+			Rcl2_one(c);
+			last_c = Rcl2_one(c);
+		}
+		else
+		{
+			last_c = Rcl2(rest_bits, c);
+		}
+
+		TTMATH_LOGC("UInt::Rcl", last_c)
+
+	return last_c;
+	}
+
+private:
+
+	/*!    
+		an auxiliary method for moving bits into the right hand side
+
+		this method moves only words
+	*/
+	void RcrMoveAllWords(uint & rest_bits, uint & last_c, uint bits, uint c)
+	{
+		rest_bits      = bits % TTMATH_BITS_PER_UINT;
+		uint all_words = bits / TTMATH_BITS_PER_UINT;
+		uint mask      = ( c ) ? TTMATH_UINT_MAX_VALUE : 0;
+
+
+		if( all_words >= value_size )
+		{
+			if( all_words == value_size && rest_bits == 0 )
+				last_c = (table[value_size-1] & TTMATH_UINT_HIGHEST_BIT) ? 1 : 0;
+			// else: last_c is default set to 0
+
+			// clearing
+			for(uint i = 0 ; i<value_size ; ++i)
+				table[i] = mask;
+
+			rest_bits = 0;
+		}
+		else if( all_words > 0 )
+		{
+			// 0 < all_words < value_size
+
+			uint first, second;
+			last_c = (table[all_words - 1] & TTMATH_UINT_HIGHEST_BIT) ? 1 : 0; // all_words is > 0
+
+			// copying the first part of the value
+			for(first=0, second=all_words ; second<value_size ; ++first, ++second)
+				table[first] = table[second];
+
+			// setting the rest to 'c'
+			for( ; first<value_size ; ++first )
+				table[first] = mask;
+		}
+
+		TTMATH_LOG("UInt::RcrMoveAllWords")
+	}
+
+public:
+
+	/*!
+		moving all bits into the right side 'bits' times
+		c -> this -> return value
+
+		bits is from a range of <0, man * TTMATH_BITS_PER_UINT>
+		or it can be even bigger then all bits will be set to 'c'
+
+		the value c will be set into the highest bits
+		and the method returns state of the last moved bit
+	*/
+	uint Rcr(uint bits, uint c=0)
+	{
+	uint last_c    = 0;
+	uint rest_bits = bits;
+	
+		if( bits == 0 )
+			return 0;
+
+		if( bits >= TTMATH_BITS_PER_UINT )
+			RcrMoveAllWords(rest_bits, last_c, bits, c);
+
+		if( rest_bits == 0 )
+		{
+			TTMATH_LOG("UInt::Rcr")
+			return last_c;
+		}
+
+		// rest_bits is from 1 to TTMATH_BITS_PER_UINT-1 now
+		if( rest_bits == 1 )
+		{
+			last_c = Rcr2_one(c);
+		}
+		else if( rest_bits == 2 )
+		{
+			// performance tests showed that for rest_bits==2 it's better to use Rcr2_one twice instead of Rcr2(2,c)
+			Rcr2_one(c);
+			last_c = Rcr2_one(c);
+		}
+		else
+		{
+			last_c = Rcr2(rest_bits, c);
+		}
+
+		TTMATH_LOGC("UInt::Rcr", last_c)
+
+	return last_c;
+	}
+
+
+	/*!
+		this method moves all bits into the left side
+		(it returns value how many bits have been moved)
+	*/
+	uint CompensationToLeft()
+	{
+		uint moving = 0;
+
+		// a - index a last word which is different from zero
+		sint a;
+		for(a=value_size-1 ; a>=0 && table[a]==0 ; --a);
+
+		if( a < 0 )
+			return moving; // all words in table have zero
+
+		if( a != value_size-1 )
+		{
+			moving += ( value_size-1 - a ) * TTMATH_BITS_PER_UINT;
+
+			// moving all words
+			sint i;
+			for(i=value_size-1 ; a>=0 ; --i, --a)
+				table[i] = table[a];
+
+			// setting the rest word to zero
+			for(; i>=0 ; --i)
+				table[i] = 0;
+		}
+
+		uint moving2 = FindLeadingBitInWord( table[value_size-1] );
+		// moving2 is different from -1 because the value table[value_size-1]
+		// is not zero
+
+		moving2 = TTMATH_BITS_PER_UINT - moving2 - 1;
+		Rcl(moving2);
+
+		TTMATH_LOG("UInt::CompensationToLeft")
+
+	return moving + moving2;
+	}
+
+
+	/*!
+		this method looks for the highest set bit
+		
+		result:
+			if 'this' is not zero:
+				return value - true
+				'table_id'   - the index of a word <0..value_size-1>
+				'index'      - the index of this set bit in the word <0..TTMATH_BITS_PER_UINT)
+
+			if 'this' is zero: 
+				return value - false
+				both 'table_id' and 'index' are zero
+	*/
+	bool FindLeadingBit(uint & table_id, uint & index) const
+	{
+		for(table_id=value_size-1 ; table_id!=0 && table[table_id]==0 ; --table_id);
+
+		if( table_id==0 && table[table_id]==0 )
+		{
+			// is zero
+			index = 0;
+
+		return false;
+		}
+		
+		// table[table_id] is different from 0
+		index = FindLeadingBitInWord( table[table_id] );
+
+	return true;
+	}
+
+
+	/*!
+		this method looks for the smallest set bit
+		
+		result:
+			if 'this' is not zero:
+				return value - true
+				'table_id'   - the index of a word <0..value_size-1>
+				'index'      - the index of this set bit in the word <0..TTMATH_BITS_PER_UINT)
+
+			if 'this' is zero: 
+				return value - false
+				both 'table_id' and 'index' are zero
+	*/
+	bool FindLowestBit(uint & table_id, uint & index) const
+	{
+		for(table_id=0 ; table_id<value_size && table[table_id]==0 ; ++table_id);
+
+		if( table_id >= value_size )
+		{
+			// is zero
+			index    = 0;
+			table_id = 0;
+
+		return false;
+		}
+		
+		// table[table_id] is different from 0
+		index = FindLowestBitInWord( table[table_id] );
+
+	return true;
+	}
+
+
+	/*!
+		getting the 'bit_index' bit
+
+		bit_index bigger or equal zero
+	*/
+	uint GetBit(uint bit_index) const
+	{
+		TTMATH_ASSERT( bit_index < value_size * TTMATH_BITS_PER_UINT )
+
+		uint index = bit_index / TTMATH_BITS_PER_UINT;
+		uint bit   = bit_index % TTMATH_BITS_PER_UINT;
+
+		uint temp = table[index];
+		uint res  = SetBitInWord(temp, bit);
+
+	return res;
+	}
+
+
+	/*!
+		setting the 'bit_index' bit
+		and returning the last state of the bit
+
+		bit_index bigger or equal zero
+	*/
+	uint SetBit(uint bit_index)
+	{
+		TTMATH_ASSERT( bit_index < value_size * TTMATH_BITS_PER_UINT )
+
+		uint index = bit_index / TTMATH_BITS_PER_UINT;
+		uint bit   = bit_index % TTMATH_BITS_PER_UINT;
+		uint res   = SetBitInWord(table[index], bit);
+
+		TTMATH_LOG("UInt::SetBit")
+
+	return res;
+	}
+
+
+	/*!
+		this method performs a bitwise operation AND 
+	*/
+	void BitAnd(const UInt<value_size> & ss2)
+	{
+		for(uint x=0 ; x<value_size ; ++x)
+			table[x] &= ss2.table[x];
+
+		TTMATH_LOG("UInt::BitAnd")
+	}
+
+
+	/*!
+		this method performs a bitwise operation OR 
+	*/
+	void BitOr(const UInt<value_size> & ss2)
+	{
+		for(uint x=0 ; x<value_size ; ++x)
+			table[x] |= ss2.table[x];
+
+		TTMATH_LOG("UInt::BitOr")
+	}
+
+
+	/*!
+		this method performs a bitwise operation XOR 
+	*/
+	void BitXor(const UInt<value_size> & ss2)
+	{
+		for(uint x=0 ; x<value_size ; ++x)
+			table[x] ^= ss2.table[x];
+
+		TTMATH_LOG("UInt::BitXor")
+	}
