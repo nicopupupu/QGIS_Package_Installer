@@ -424,3 +424,253 @@ namespace ttmath
 			set it to zero if you want integer value only
 
 			for example when the value is:
+				12.345678 and 'round' is 4
+			then the result will be 
+				12.3457   (the last digit was rounded)
+		*/
+		sint round;
+
+
+		/*!
+			if true that not mattered digits in the mantissa will be cut off
+			(zero characters at the end -- after the comma operator)
+			e.g. 1234,78000 will be: 1234,78
+			default: true
+		*/
+		bool trim_zeroes;
+
+
+		/*!
+			the main comma operator (used when reading and writing)
+			default is a dot '.'
+		*/
+		uint comma;
+
+
+		/*!
+			additional comma operator (used only when reading) 
+			if you don't want it just set it to zero
+			default is a comma ','
+
+			this allowes you to convert from a value:
+			123.45 as well as from 123,45
+		*/
+		uint comma2;
+
+
+		/*!
+			it sets the character which is used for grouping
+			if group=' ' then: 1234,56789 will be printed as: 1 234,567 89
+
+			if you don't want grouping just set it to zero (which is default)
+		*/
+		uint group;
+
+
+		/*!
+			how many digits should be grouped (it is used if 'group' is non zero)
+			default: 3
+		*/
+		uint group_digits;
+
+
+		/*!
+		*/
+		uint group_exp; // not implemented yet
+
+
+
+
+		Conv()
+		{
+			// default values
+			base         = 10;
+			scient       = false;
+			scient_from  = 15;
+			base_round   = true;
+			round        = -1;
+			trim_zeroes  = true;
+			comma        = '.';
+			comma2       = ',';
+			group        = 0;
+			group_digits = 3;
+			group_exp    = 0;
+		}
+	};
+
+
+
+	/*!
+		this simple class can be used in multithreading model
+		(you can write your own class derived from this one)
+
+		for example: in some functions like Factorial() 
+		/at the moment only Factorial/ you can give a pointer to 
+		the 'stop object', if the method WasStopSignal() of this 
+		object returns true that means we should break the calculating
+		and return
+	*/
+	class StopCalculating
+	{
+	public:
+		virtual bool WasStopSignal() const volatile { return false; }
+		virtual ~StopCalculating(){}
+	};
+
+
+	/*!
+		a small class which is useful when compiling with gcc
+
+		object of this type holds the name and the line of a file
+		in which the macro TTMATH_ASSERT or TTMATH_REFERENCE_ASSERT was used
+	*/
+	class ExceptionInfo
+	{
+	const char * file;
+	int line;
+
+	public:
+		ExceptionInfo() : file(0), line(0) {}
+		ExceptionInfo(const char * f, int l) : file(f), line(l) {}
+
+		std::string Where() const
+		{
+			if( !file )
+				return "unknown";
+
+			std::ostringstream result;
+			result << file << ":" << line;
+
+		return result.str();
+		}
+	};
+
+
+	/*!
+		A small class used for reporting 'reference' errors
+
+		In the library is used macro TTMATH_REFERENCE_ASSERT which
+		can throw an exception of this type
+
+		** from version 0.9.2 this macro is removed from all methods
+		   in public interface so you don't have to worry about it **
+
+		If you compile with gcc you can get a small benefit 
+		from using method Where() (it returns std::string) with
+		the name and the line of a file where the macro TTMATH_REFERENCE_ASSERT
+		was used)
+	*/
+	class ReferenceError : public std::logic_error, public ExceptionInfo
+	{
+	public:
+
+		ReferenceError() : std::logic_error("reference error")
+		{
+		}
+
+		ReferenceError(const char * f, int l) :
+							std::logic_error("reference error"), ExceptionInfo(f,l)
+		{
+		}
+
+		std::string Where() const
+		{
+			return ExceptionInfo::Where();
+		}
+	};
+
+
+	/*!
+		a small class used for reporting errors
+
+		in the library is used macro TTMATH_ASSERT which
+		(if the condition in it is false) throw an exception
+		of this type
+
+		if you compile with gcc you can get a small benefit 
+		from using method Where() (it returns std::string) with
+		the name and the line of a file where the macro TTMATH_ASSERT
+		was used)
+	*/
+	class RuntimeError : public std::runtime_error, public ExceptionInfo
+	{
+	public:
+
+		RuntimeError() : std::runtime_error("internal error")
+		{
+		}
+
+		RuntimeError(const char * f, int l) :
+						std::runtime_error("internal error"), ExceptionInfo(f,l)
+		{
+		}
+
+		std::string Where() const
+		{
+			return ExceptionInfo::Where();
+		}
+	};
+
+
+
+	/*!
+		TTMATH_DEBUG
+		this macro enables further testing during writing your code
+		you don't have to define it in a release mode
+
+		if this macro is set then macros TTMATH_ASSERT and TTMATH_REFERENCE_ASSERT
+		are set as well	and these macros can throw an exception if a condition in it
+		is not fulfilled (look at the definition of TTMATH_ASSERT and TTMATH_REFERENCE_ASSERT)
+
+		TTMATH_DEBUG is set automatically if DEBUG or _DEBUG are defined
+	*/
+	#if defined DEBUG || defined _DEBUG
+		#define TTMATH_DEBUG
+	#endif
+
+
+	#ifdef TTMATH_DEBUG
+
+		#if defined(__FILE__) && defined(__LINE__)
+
+			#define TTMATH_REFERENCE_ASSERT(expression) \
+				if( &(expression) == this ) throw ttmath::ReferenceError(__FILE__, __LINE__);
+
+			#define TTMATH_ASSERT(expression) \
+				if( !(expression) ) throw ttmath::RuntimeError(__FILE__, __LINE__);
+
+		#else
+
+			#define TTMATH_REFERENCE_ASSERT(expression) \
+				if( &(expression) == this ) throw ReferenceError();
+
+			#define TTMATH_ASSERT(expression) \
+				if( !(expression) ) throw RuntimeError();
+		#endif
+
+	#else
+		#define TTMATH_REFERENCE_ASSERT(expression)
+		#define TTMATH_ASSERT(expression)
+	#endif
+
+
+
+	#ifdef TTMATH_DEBUG_LOG
+		#define TTMATH_LOG(msg)                             PrintLog(msg, std::cout);
+		#define TTMATH_LOGC(msg, carry)                     PrintLog(msg, carry, std::cout);
+		#define TTMATH_VECTOR_LOG(msg, vector, len)         PrintVectorLog(msg, std::cout, vector, len);
+		#define TTMATH_VECTOR_LOGC(msg, carry, vector, len) PrintVectorLog(msg, carry, std::cout, vector, len);
+	#else
+		#define TTMATH_LOG(msg)
+		#define TTMATH_LOGC(msg, carry)
+		#define TTMATH_VECTOR_LOG(msg, vector, len)
+		#define TTMATH_VECTOR_LOGC(msg, carry, vector, len)
+	#endif
+
+
+
+
+} // namespace
+
+
+#endif
