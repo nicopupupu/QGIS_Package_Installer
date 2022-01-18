@@ -772,3 +772,342 @@ public:
 
 		TTMATH_LOG("UInt::BitXor")
 	}
+
+
+	/*!
+		this method performs a bitwise operation NOT
+	*/
+	void BitNot()
+	{
+		for(uint x=0 ; x<value_size ; ++x)
+			table[x] = ~table[x];
+
+		TTMATH_LOG("UInt::BitNot")
+	}
+
+
+	/*!
+		this method performs a bitwise operation NOT but only
+		on the range of <0, leading_bit>
+
+		for example:
+			BitNot2(8) = BitNot2( 1000(bin) ) = 111(bin) = 7
+	*/
+	void BitNot2()
+	{
+	uint table_id, index;
+
+		if( FindLeadingBit(table_id, index) )
+		{
+			for(uint x=0 ; x<table_id ; ++x)
+				table[x] = ~table[x];
+
+			uint mask  = TTMATH_UINT_MAX_VALUE;
+			uint shift = TTMATH_BITS_PER_UINT - index - 1;
+
+			if(shift)
+				mask >>= shift;
+
+			table[table_id] ^= mask;
+		}
+		else
+			table[0] = 1;
+
+
+		TTMATH_LOG("UInt::BitNot2")
+	}
+
+
+
+	/*!
+	 *
+	 * Multiplication
+	 *
+	 *
+	*/
+
+public:
+
+	/*!
+		multiplication: this = this * ss2
+
+		it can return a carry
+	*/
+	uint MulInt(uint ss2)
+	{
+	uint r1, r2, x1;
+	uint c = 0;
+
+		UInt<value_size> u(*this);
+		SetZero();
+
+		if( ss2 == 0 )
+		{
+			TTMATH_LOGC("UInt::MulInt(uint)", 0)
+			return 0;
+		}
+
+		for(x1=0 ; x1<value_size-1 ; ++x1)
+		{
+			MulTwoWords(u.table[x1], ss2, &r2, &r1);
+			c += AddTwoInts(r2,r1,x1);
+		}
+
+		// x1 = value_size-1  (last word)
+		MulTwoWords(u.table[x1], ss2, &r2, &r1);
+		c += (r2!=0) ? 1 : 0;
+		c += AddInt(r1, x1);
+
+		TTMATH_LOGC("UInt::MulInt(uint)", c)
+
+	return (c==0)? 0 : 1;
+	}
+
+
+	/*!
+		multiplication: result = this * ss2
+
+		we're using this method only when result_size is greater than value_size
+		if so there will not be a carry
+	*/
+	template<uint result_size>
+	void MulInt(uint ss2, UInt<result_size> & result) const
+	{
+	TTMATH_ASSERT( result_size > value_size )
+
+	uint r2,r1;
+	uint x1size=value_size;
+	uint x1start=0;
+
+		result.SetZero();
+
+		if( ss2 == 0 )
+		{
+			TTMATH_VECTOR_LOG("UInt::MulInt(uint, UInt<>)", result.table, result_size)
+			return;
+		}
+
+		if( value_size > 2 )
+		{	
+			// if the value_size is smaller than or equal to 2
+			// there is no sense to set x1size and x1start to another values
+
+			for(x1size=value_size ; x1size>0 && table[x1size-1]==0 ; --x1size);
+
+			if( x1size == 0 )
+			{
+				TTMATH_VECTOR_LOG("UInt::MulInt(uint, UInt<>)", result.table, result_size)
+				return;
+			}
+
+			for(x1start=0 ; x1start<x1size && table[x1start]==0 ; ++x1start);
+		}
+
+		for(uint x1=x1start ; x1<x1size ; ++x1)
+		{
+			MulTwoWords(table[x1], ss2, &r2, &r1 );
+			result.AddTwoInts(r2,r1,x1);
+		}
+
+		TTMATH_VECTOR_LOG("UInt::MulInt(uint, UInt<>)", result.table, result_size)
+
+	return;
+	}
+
+
+
+	/*!
+		the multiplication 'this' = 'this' * ss2
+
+		algorithm: 100 - means automatically choose the fastest algorithm
+	*/
+	uint Mul(const UInt<value_size> & ss2, uint algorithm = 100)
+	{
+		switch( algorithm )
+		{
+		case 1:
+			return Mul1(ss2);
+
+		case 2:
+			return Mul2(ss2);
+
+		case 3:
+			return Mul3(ss2);
+
+		case 100:
+		default:
+			return MulFastest(ss2);
+		}
+	}
+
+
+	/*!
+		the multiplication 'result' = 'this' * ss2
+
+		since the 'result' is twice bigger than 'this' and 'ss2' 
+		this method never returns a carry
+
+		algorithm: 100 - means automatically choose the fastest algorithm
+	*/
+	void MulBig(const UInt<value_size> & ss2,
+				UInt<value_size*2> & result, 
+				uint algorithm = 100)
+	{
+		switch( algorithm )
+		{
+		case 1:
+			return Mul1Big(ss2, result);
+
+		case 2:
+			return Mul2Big(ss2, result);
+
+		case 3:
+			return Mul3Big(ss2, result);
+
+		case 100:
+		default:
+			return MulFastestBig(ss2, result);
+		}
+	}
+
+
+
+	/*!
+		the first version of the multiplication algorithm
+	*/
+
+private:
+
+	/*!
+		multiplication: this = this * ss2
+
+		it returns carry if it has been
+	*/
+	uint Mul1Ref(const UInt<value_size> & ss2)
+	{
+	TTMATH_REFERENCE_ASSERT( ss2 )
+
+	UInt<value_size> ss1( *this );
+	SetZero();	
+
+		for(uint i=0; i < value_size*TTMATH_BITS_PER_UINT ; ++i)
+		{
+			if( Add(*this) )
+			{
+				TTMATH_LOGC("UInt::Mul1", 1)
+				return 1;
+			}
+
+			if( ss1.Rcl(1) )
+				if( Add(ss2) )
+				{
+					TTMATH_LOGC("UInt::Mul1", 1)
+					return 1;
+				}
+		}
+
+		TTMATH_LOGC("UInt::Mul1", 0)
+
+	return 0;
+	}
+
+
+public:
+
+	/*!
+		multiplication: this = this * ss2
+		can return carry
+	*/
+	uint Mul1(const UInt<value_size> & ss2)
+	{
+		if( this == &ss2 )
+		{
+			UInt<value_size> copy_ss2(ss2);
+			return Mul1Ref(copy_ss2);
+		}
+		else
+		{
+			return Mul1Ref(ss2);
+		}
+	}
+
+	
+	/*!
+		multiplication: result = this * ss2
+
+		result is twice bigger than 'this' and 'ss2'
+		this method never returns carry			
+	*/
+	void Mul1Big(const UInt<value_size> & ss2_, UInt<value_size*2> & result)
+	{
+	UInt<value_size*2> ss2;
+	uint i;
+
+		// copying *this into result and ss2_ into ss2
+		for(i=0 ; i<value_size ; ++i)
+		{
+			result.table[i] = table[i];
+			ss2.table[i]    = ss2_.table[i];
+		}
+
+		// cleaning the highest bytes in result and ss2
+		for( ; i < value_size*2 ; ++i)
+		{
+			result.table[i] = 0;
+			ss2.table[i]    = 0;
+		}
+
+		// multiply
+		// (there will not be a carry)
+		result.Mul1( ss2 );
+
+		TTMATH_LOG("UInt::Mul1Big")
+	}
+
+
+
+	/*!
+		the second version of the multiplication algorithm
+
+		this algorithm is similar to the 'schoolbook method' which is done by hand
+	*/
+
+	/*!
+		multiplication: this = this * ss2
+
+		it returns carry if it has been
+	*/
+	uint Mul2(const UInt<value_size> & ss2)
+	{
+	UInt<value_size*2> result;
+	uint i, c = 0;
+
+		Mul2Big(ss2, result);
+	
+		// copying result
+		for(i=0 ; i<value_size ; ++i)
+			table[i] = result.table[i];
+
+		// testing carry
+		for( ; i<value_size*2 ; ++i)
+			if( result.table[i] != 0 )
+			{
+				c = 1;
+				break;
+			}
+
+		TTMATH_LOGC("UInt::Mul2", c)
+
+	return c;
+	}
+
+
+	/*!
+		multiplication: result = this * ss2
+
+		result is twice bigger than this and ss2
+		this method never returns carry			
+	*/
+	void Mul2Big(const UInt<value_size> & ss2, UInt<value_size*2> & result)
+	{
+		Mul2Big2<value_size>(table, ss2.table, result);
