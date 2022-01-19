@@ -1480,3 +1480,350 @@ public:
 			}
 
 		TTMATH_LOGC("UInt::MulFastest", c)
+
+	return c;
+	}
+
+
+	/*!
+		multiplication result = this * ss2
+
+		this method is trying to select the fastest algorithm
+		(in the future this method can be improved)
+	*/
+	void MulFastestBig(const UInt<value_size> & ss2, UInt<value_size*2> & result)
+	{
+		if( value_size < TTMATH_USE_KARATSUBA_MULTIPLICATION_FROM_SIZE )
+			return Mul2Big(ss2, result);
+
+		uint x1size  = value_size, x2size  = value_size;
+		uint x1start = 0,          x2start = 0;
+
+		for(x1size=value_size ; x1size>0 && table[x1size-1]==0 ; --x1size);
+		for(x2size=value_size ; x2size>0 && ss2.table[x2size-1]==0 ; --x2size);
+
+		if( x1size==0 || x2size==0 )
+		{
+			// either 'this' or 'ss2' is equal zero - the result is zero too
+			result.SetZero();
+			return;
+		}
+
+		for(x1start=0 ; x1start<x1size && table[x1start]==0 ; ++x1start);
+		for(x2start=0 ; x2start<x2size && ss2.table[x2start]==0 ; ++x2start);
+
+		uint distancex1 = x1size - x1start;
+		uint distancex2 = x2size - x2start;
+
+		if( distancex1 < 3 || distancex2 < 3 )
+			// either 'this' or 'ss2' have only 2 (or 1) items different from zero (side by side)
+			// (this condition in the future can be improved)
+			return Mul2Big3<value_size>(table, ss2.table, result, x1start, x1size, x2start, x2size);
+
+
+		// Karatsuba multiplication
+		Mul3Big(ss2, result);
+
+		TTMATH_LOG("UInt::MulFastestBig")
+	}
+
+
+	/*!
+	 *
+	 * Division
+	 *
+	 *
+	*/
+	
+public:
+
+
+	/*!
+		division by one unsigned word
+
+		returns 1 when divisor is zero
+	*/
+	uint DivInt(uint divisor, uint * remainder = 0)
+	{
+		if( divisor == 0 )
+		{
+			if( remainder )
+				*remainder = 0; // this is for convenience, without it the compiler can report that 'remainder' is uninitialized
+
+			TTMATH_LOG("UInt::DivInt")
+
+		return 1;
+		}
+
+		if( divisor == 1 )
+		{
+			if( remainder )
+				*remainder = 0;
+
+			TTMATH_LOG("UInt::DivInt")
+
+		return 0;
+		}
+
+		UInt<value_size> dividend(*this);
+		SetZero();
+		
+		sint i;  // i must be with a sign
+		uint r = 0;
+
+		// we're looking for the last word in ss1
+		for(i=value_size-1 ; i>0 && dividend.table[i]==0 ; --i);
+
+		for( ; i>=0 ; --i)
+			DivTwoWords(r, dividend.table[i], divisor, &table[i], &r);
+
+		if( remainder )
+			*remainder = r;
+
+		TTMATH_LOG("UInt::DivInt")
+
+	return 0;
+	}
+
+	uint DivInt(uint divisor, uint & remainder)
+	{
+		return DivInt(divisor, &remainder);
+	}
+
+
+
+	/*!
+		division this = this / ss2
+		
+		return values:
+			 0 - ok
+			 1 - division by zero
+			'this' will be the quotient
+			'remainder' - remainder
+	*/
+	uint Div(	const UInt<value_size> & divisor,
+				UInt<value_size> * remainder = 0,
+				uint algorithm = 3)
+	{
+		switch( algorithm )
+		{
+		case 1:
+			return Div1(divisor, remainder);
+
+		case 2:
+			return Div2(divisor, remainder);
+
+		case 3:
+		default:
+			return Div3(divisor, remainder);
+		}
+	}
+
+	uint Div(const UInt<value_size> & divisor, UInt<value_size> & remainder, uint algorithm = 3)
+	{
+		return Div(divisor, &remainder, algorithm);
+	}
+
+
+
+private:
+
+	/*!
+		return values:
+		0 - none has to be done
+		1 - division by zero
+		2 - division should be made
+	*/
+	uint Div_StandardTest(	const UInt<value_size> & v,
+							uint & m, uint & n,
+							UInt<value_size> * remainder = 0)
+	{
+		switch( Div_CalculatingSize(v, m, n) )
+		{
+		case 4: // 'this' is equal v
+			if( remainder )
+				remainder->SetZero();
+
+			SetOne();
+			TTMATH_LOG("UInt::Div_StandardTest")
+			return 0;
+
+		case 3: // 'this' is smaller than v
+			if( remainder )
+				*remainder = *this;
+
+			SetZero();
+			TTMATH_LOG("UInt::Div_StandardTest")
+			return 0;
+
+		case 2: // 'this' is zero
+			if( remainder )
+				remainder->SetZero();
+
+			SetZero();
+			TTMATH_LOG("UInt::Div_StandardTest")
+			return 0;
+
+		case 1: // v is zero
+			TTMATH_LOG("UInt::Div_StandardTest")
+			return 1;
+		}
+
+		TTMATH_LOG("UInt::Div_StandardTest")
+
+	return 2;
+	}
+
+
+
+	/*!
+		return values:
+		0 - ok 
+			'm' - is the index (from 0) of last non-zero word in table ('this')
+			'n' - is the index (from 0) of last non-zero word in v.table
+		1 - v is zero 
+		2 - 'this' is zero
+		3 - 'this' is smaller than v
+		4 - 'this' is equal v
+
+		if the return value is different than zero the 'm' and 'n' are undefined
+	*/
+	uint Div_CalculatingSize(const UInt<value_size> & v, uint & m, uint & n)
+	{
+		m = n = value_size-1;
+
+		for( ; n!=0 && v.table[n]==0 ; --n);
+
+		if( n==0 && v.table[n]==0 )
+			return 1;
+
+		for( ; m!=0 && table[m]==0 ; --m);
+
+		if( m==0 && table[m]==0 )
+			return 2;
+
+		if( m < n )
+			return 3;
+		else
+		if( m == n )
+		{
+			uint i;
+			for(i = n ; i!=0 && table[i]==v.table[i] ; --i);
+			
+			if( table[i] < v.table[i] )
+				return 3;
+			else
+			if (table[i] == v.table[i] )
+				return 4;
+		}
+
+	return 0;
+	}
+
+
+public:
+
+	/*!
+		the first division algorithm
+		radix 2
+	*/
+	uint Div1(const UInt<value_size> & divisor, UInt<value_size> * remainder = 0)
+	{
+	uint m,n, test;
+
+		test = Div_StandardTest(divisor, m, n, remainder);
+		if( test < 2 )
+			return test;
+
+		if( !remainder )
+		{
+			UInt<value_size> rem;
+	
+		return Div1_Calculate(divisor, rem);
+		}
+
+	return Div1_Calculate(divisor, *remainder);
+	}
+
+
+	/*!
+		the first division algorithm
+		radix 2
+	*/
+	uint Div1(const UInt<value_size> & divisor, UInt<value_size> & remainder)
+	{
+		return Div1(divisor, &remainder);
+	}
+
+
+private:
+
+	uint Div1_Calculate(const UInt<value_size> & divisor, UInt<value_size> & rest)
+	{
+		if( this == &divisor )
+		{
+			UInt<value_size> divisor_copy(divisor);
+			return Div1_CalculateRef(divisor_copy, rest);
+		}
+		else
+		{
+			return Div1_CalculateRef(divisor, rest);
+		}
+	}
+
+
+	uint Div1_CalculateRef(const UInt<value_size> & divisor, UInt<value_size> & rest)
+	{
+	TTMATH_REFERENCE_ASSERT( divisor )
+	
+	sint loop;
+	sint c;
+
+		rest.SetZero();
+		loop = value_size * TTMATH_BITS_PER_UINT;
+		c = 0;
+
+		
+	div_a:
+		c = Rcl(1, c);
+		c = rest.Add(rest,c);
+		c = rest.Sub(divisor,c);
+
+		c = !c;
+
+		if(!c)
+			goto div_d;
+
+
+	div_b:
+		--loop;
+		if(loop)
+			goto div_a;
+
+		c = Rcl(1, c);
+		TTMATH_LOG("UInt::Div1_Calculate")
+		return 0;
+
+
+	div_c:
+		c = Rcl(1, c);
+		c = rest.Add(rest,c);
+		c = rest.Add(divisor);
+
+		if(c)
+			goto div_b;
+
+
+	div_d:
+		--loop;
+		if(loop)
+			goto div_c;
+
+		c = Rcl(1, c);
+		c = rest.Add(divisor);
+
+		TTMATH_LOG("UInt::Div1_Calculate")
+
+	return 0;
+	}
+	
