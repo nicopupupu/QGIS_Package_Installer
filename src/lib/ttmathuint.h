@@ -2156,3 +2156,372 @@ private:
 
 
 private:
+
+
+	void Div3_Division(UInt<value_size> v, UInt<value_size> * remainder, uint m, uint n)
+	{
+	TTMATH_ASSERT( n>=2 )
+
+	UInt<value_size+1> uu, vv;
+	UInt<value_size> q;
+	uint d, u_value_size, u0, u1, u2, v1, v0, j=m;	
+	
+		u_value_size = Div3_Normalize(v, n, d);
+
+		if( j+n == value_size )
+			u2 = u_value_size;
+		else
+			u2 = table[j+n];
+
+		Div3_MakeBiggerV(v, vv);
+
+		for(uint i = j+1 ; i<value_size ; ++i)
+			q.table[i] = 0;
+
+		while( true )
+		{
+			u1 = table[j+n-1];
+			u0 = table[j+n-2];
+			v1 = v.table[n-1];
+			v0 = v.table[n-2];
+
+			uint qp = Div3_Calculate(u2,u1,u0, v1,v0);
+
+			Div3_MakeNewU(uu, j, n, u2);
+			Div3_MultiplySubtract(uu, vv, qp);
+			Div3_CopyNewU(uu, j, n);
+
+			q.table[j] = qp;
+
+			// the next loop
+			if( j-- == 0 )
+				break;
+
+			u2 = table[j+n];
+		}
+
+		if( remainder )
+			Div3_Unnormalize(remainder, n, d);
+
+	*this = q;
+
+	TTMATH_LOG("UInt::Div3_Division")
+	}
+
+
+	void Div3_MakeNewU(UInt<value_size+1> & uu, uint j, uint n, uint u_max)
+	{
+	uint i;
+
+		for(i=0 ; i<n ; ++i, ++j)
+			uu.table[i] = table[j];
+
+		// 'n' is from <1..value_size> so and 'i' is from <0..value_size>
+		// then table[i] is always correct (look at the declaration of 'uu')
+		uu.table[i] = u_max;
+
+		for( ++i ; i<value_size+1 ; ++i)
+			uu.table[i] = 0;
+
+		TTMATH_LOG("UInt::Div3_MakeNewU")
+	}
+
+
+	void Div3_CopyNewU(const UInt<value_size+1> & uu, uint j, uint n)
+	{
+	uint i;
+
+		for(i=0 ; i<n ; ++i)
+			table[i+j] = uu.table[i];
+
+		if( i+j < value_size )
+			table[i+j] = uu.table[i];
+
+		TTMATH_LOG("UInt::Div3_CopyNewU")
+	}
+
+
+	/*!
+		we're making the new 'vv' 
+		the value is actually the same but the 'table' is bigger (value_size+1)
+	*/
+	void Div3_MakeBiggerV(const UInt<value_size> & v, UInt<value_size+1> & vv)
+	{
+		for(uint i=0 ; i<value_size ; ++i)
+			vv.table[i] = v.table[i];
+
+		vv.table[value_size] = 0;
+
+		TTMATH_LOG("UInt::Div3_MakeBiggerV")
+	}
+	
+
+	/*!
+		we're moving all bits from 'v' into the left side of the n-1 word
+		(the highest bit at v.table[n-1] will be equal one,
+		the bits from 'this' we're moving the same times as 'v')
+
+		return values:
+		  d - how many times we've moved
+		  return - the next-left value from 'this' (that after table[value_size-1])
+	*/
+	uint Div3_Normalize(UInt<value_size> & v, uint n, uint & d)
+	{
+		// v.table[n-1] is != 0
+
+		uint bit  = (uint)FindLeadingBitInWord(v.table[n-1]);
+		uint move = (TTMATH_BITS_PER_UINT - bit - 1);
+		uint res  = table[value_size-1];
+		d         = move;
+
+		if( move > 0 )
+		{
+			v.Rcl(move, 0);
+			Rcl(move, 0);
+			res = res >> (bit + 1);
+		}
+		else
+		{
+			res = 0;
+		}
+
+		TTMATH_LOG("UInt::Div3_Normalize")
+
+	return res;
+	}
+
+
+	void Div3_Unnormalize(UInt<value_size> * remainder, uint n, uint d)
+	{
+		for(uint i=n ; i<value_size ; ++i)
+			table[i] = 0;
+
+		Rcr(d,0);
+
+		*remainder = *this;
+
+		TTMATH_LOG("UInt::Div3_Unnormalize")
+	}
+
+
+	uint Div3_Calculate(uint u2, uint u1, uint u0, uint v1, uint v0)
+	{	
+	UInt<2> u_temp;
+	uint rp;
+	bool next_test;
+
+		TTMATH_ASSERT( v1 != 0 )
+
+		u_temp.table[1] = u2;
+		u_temp.table[0] = u1;
+		u_temp.DivInt(v1, &rp);
+
+		TTMATH_ASSERT( u_temp.table[1]==0 || u_temp.table[1]==1 )
+
+		do
+		{
+			bool decrease = false;
+
+			if( u_temp.table[1] == 1 )
+				decrease = true;
+			else
+			{
+				UInt<2> temp1, temp2;
+
+				UInt<2>::MulTwoWords(u_temp.table[0], v0, temp1.table+1, temp1.table);
+				temp2.table[1] = rp;
+				temp2.table[0] = u0;
+
+				if( temp1 > temp2 )
+					decrease = true;
+			}
+
+			next_test = false;
+
+			if( decrease )
+			{
+				u_temp.SubOne();
+
+				rp += v1;
+
+				if( rp >= v1 ) // it means that there wasn't a carry (r<b from the book)
+					next_test = true;
+			}
+		}
+		while( next_test );
+
+		TTMATH_LOG("UInt::Div3_Calculate")
+
+	return u_temp.table[0];
+	}
+
+
+
+	void Div3_MultiplySubtract(	UInt<value_size+1> & uu,
+								const UInt<value_size+1> & vv, uint & qp)
+	{
+		// D4 (in the book)
+
+		UInt<value_size+1> vv_temp(vv);
+		vv_temp.MulInt(qp);
+
+		if( uu.Sub(vv_temp) )  
+		{
+			// there was a carry
+			
+			//
+			// !!! this part of code was not tested
+			//
+
+			--qp;
+			uu.Add(vv);
+
+			// can be a carry from this additions but it should be ignored 
+			// because it cancels with the borrow from uu.Sub(vv_temp)
+		}
+
+		TTMATH_LOG("UInt::Div3_MultiplySubtract")
+	}
+
+
+
+
+
+
+public:
+
+
+	/*!
+		power this = this ^ pow
+		binary algorithm (r-to-l)
+
+		return values:
+		0 - ok
+		1 - carry
+		2 - incorrect argument (0^0)
+	*/
+	uint Pow(UInt<value_size> pow)
+	{
+		if(pow.IsZero() && IsZero())
+			// we don't define zero^zero
+			return 2;
+
+		UInt<value_size> start(*this);
+		UInt<value_size> result;
+		result.SetOne();
+		uint c = 0;
+
+		while( !c )
+		{
+			if( pow.table[0] & 1 )
+				c += result.Mul(start);
+
+			pow.Rcr2_one(0);
+			if( pow.IsZero() )
+				break;
+
+			c += start.Mul(start);
+		}
+
+		*this = result;
+
+		TTMATH_LOGC("UInt::Pow(UInt<>)", c)
+
+	return (c==0)? 0 : 1;
+	}
+
+
+	/*!
+		square root
+		e.g. Sqrt(9) = 3
+		('digit-by-digit' algorithm)
+	*/
+	void Sqrt()
+	{
+	UInt<value_size> bit, temp;
+
+		if( IsZero() )
+			return;
+
+		UInt<value_size> value(*this);
+
+		SetZero();
+		bit.SetZero();
+		bit.table[value_size-1] = (TTMATH_UINT_HIGHEST_BIT >> 1);
+		
+		while( bit > value )
+			bit.Rcr(2);
+
+		while( !bit.IsZero() )
+		{
+			temp = *this;
+			temp.Add(bit);
+
+			if( value >= temp )
+			{
+				value.Sub(temp);
+				Rcr(1);
+				Add(bit);
+			}
+			else
+			{
+				Rcr(1);
+			}
+
+			bit.Rcr(2);
+		}
+
+		TTMATH_LOG("UInt::Sqrt")
+	}
+
+
+
+	/*!
+		this method sets n first bits to value zero
+
+		For example:
+		let n=2 then if there's a value 111 (bin) there'll be '100' (bin)
+	*/
+	void ClearFirstBits(uint n)
+	{
+		if( n >= value_size*TTMATH_BITS_PER_UINT )
+		{
+			SetZero();
+			TTMATH_LOG("UInt::ClearFirstBits")
+			return;
+		}
+
+		uint * p = table;
+
+		// first we're clearing the whole words
+		while( n >= TTMATH_BITS_PER_UINT )
+		{
+			*p++ = 0;
+			n   -= TTMATH_BITS_PER_UINT;
+		}
+
+		if( n == 0 )
+		{
+			TTMATH_LOG("UInt::ClearFirstBits")
+			return;
+		}
+
+		// and then we're clearing one word which has left
+		// mask -- all bits are set to one
+		uint mask = TTMATH_UINT_MAX_VALUE;
+
+		mask = mask << n;
+
+		(*p) &= mask;
+
+		TTMATH_LOG("UInt::ClearFirstBits")
+	}
+
+
+	/*!
+		this method returns true if the highest bit of the value is set
+	*/
+	bool IsTheHighestBitSet() const
+	{
+		return (table[value_size-1] & TTMATH_UINT_HIGHEST_BIT) != 0;
+	}
