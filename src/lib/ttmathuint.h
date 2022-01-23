@@ -1827,3 +1827,332 @@ private:
 	return 0;
 	}
 	
+
+public:
+
+	/*!
+		the second division algorithm
+
+		return values:
+			0 - ok
+			1 - division by zero
+	*/
+	uint Div2(const UInt<value_size> & divisor, UInt<value_size> * remainder = 0)
+	{
+		if( this == &divisor )
+		{
+			UInt<value_size> divisor_copy(divisor);
+			return Div2Ref(divisor_copy, remainder);
+		}
+		else
+		{
+			return Div2Ref(divisor, remainder);
+		}
+	}
+
+
+	/*!
+		the second division algorithm
+
+		return values:
+			0 - ok
+			1 - division by zero
+	*/
+	uint Div2(const UInt<value_size> & divisor, UInt<value_size> & remainder)
+	{
+		return Div2(divisor, &remainder);
+	}
+
+
+private:
+
+	/*!
+		the second division algorithm
+
+		return values:
+			0 - ok
+			1 - division by zero
+	*/
+	uint Div2Ref(const UInt<value_size> & divisor, UInt<value_size> * remainder = 0)
+	{
+		uint bits_diff;
+		uint status = Div2_Calculate(divisor, remainder, bits_diff);
+		if( status < 2 )
+			return status;
+
+		if( CmpBiggerEqual(divisor) )
+		{
+			Div2(divisor, remainder);
+			SetBit(bits_diff);
+		}
+		else
+		{
+			if( remainder )
+				*remainder = *this;
+
+			SetZero();
+			SetBit(bits_diff);
+		}
+
+		TTMATH_LOG("UInt::Div2")
+
+	return 0;
+	}
+
+
+	/*!
+		return values:
+			0 - we've calculated the division
+			1 - division by zero
+			2 - we have to still calculate
+
+	*/
+	uint Div2_Calculate(const UInt<value_size> & divisor, UInt<value_size> * remainder,
+															uint & bits_diff)
+	{
+	uint table_id, index;
+	uint divisor_table_id, divisor_index;
+
+		uint status = Div2_FindLeadingBitsAndCheck(	divisor, remainder,
+													table_id, index,
+													divisor_table_id, divisor_index);
+
+		if( status < 2 )
+		{
+			TTMATH_LOG("UInt::Div2_Calculate")
+			return status;
+		}
+		
+		// here we know that 'this' is greater than divisor
+		// then 'index' is greater or equal 'divisor_index'
+		bits_diff = index - divisor_index;
+
+		UInt<value_size> divisor_copy(divisor);
+		divisor_copy.Rcl(bits_diff, 0);
+
+		if( CmpSmaller(divisor_copy, table_id) )
+		{
+			divisor_copy.Rcr(1);
+			--bits_diff;
+		}
+
+		Sub(divisor_copy, 0);
+
+		TTMATH_LOG("UInt::Div2_Calculate")
+
+	return 2;
+	}
+
+
+	/*!
+		return values:
+			0 - we've calculated the division
+			1 - division by zero
+			2 - we have to still calculate
+	*/
+	uint Div2_FindLeadingBitsAndCheck(	const UInt<value_size> & divisor,
+										UInt<value_size> * remainder,
+										uint & table_id, uint & index,
+										uint & divisor_table_id, uint & divisor_index)
+	{
+		if( !divisor.FindLeadingBit(divisor_table_id, divisor_index) )
+		{
+			// division by zero
+			TTMATH_LOG("UInt::Div2_FindLeadingBitsAndCheck")
+			return 1;
+		}
+
+		if(	!FindLeadingBit(table_id, index) )
+		{
+			// zero is divided by something
+			
+			SetZero();
+
+			if( remainder )
+				remainder->SetZero();
+
+			TTMATH_LOG("UInt::Div2_FindLeadingBitsAndCheck")
+
+		return 0;
+		}
+	
+		divisor_index += divisor_table_id * TTMATH_BITS_PER_UINT;
+		index         += table_id         * TTMATH_BITS_PER_UINT;
+
+		if( divisor_table_id == 0 )
+		{
+			// dividor has only one 32-bit word
+
+			uint r;
+			DivInt(divisor.table[0], &r);
+
+			if( remainder )
+			{
+				remainder->SetZero();
+				remainder->table[0] = r;
+			}
+
+			TTMATH_LOG("UInt::Div2_FindLeadingBitsAndCheck")
+
+		return 0;
+		}
+	
+
+		if( Div2_DivisorGreaterOrEqual(	divisor, remainder,
+										table_id, index,
+										divisor_index) )
+		{
+			TTMATH_LOG("UInt::Div2_FindLeadingBitsAndCheck")
+			return 0;
+		}
+
+
+		TTMATH_LOG("UInt::Div2_FindLeadingBitsAndCheck")
+
+	return 2;
+	}
+
+
+	/*!
+		return values:
+			true if divisor is equal or greater than 'this'
+	*/
+	bool Div2_DivisorGreaterOrEqual(	const UInt<value_size> & divisor,
+										UInt<value_size> * remainder, 
+										uint table_id, uint index,
+										uint divisor_index  )
+	{
+		if( divisor_index > index )
+		{
+			// divisor is greater than this
+
+			if( remainder )
+				*remainder = *this;
+
+			SetZero();
+
+			TTMATH_LOG("UInt::Div2_DivisorGreaterOrEqual")
+
+		return true;
+		}
+
+		if( divisor_index == index )
+		{
+			// table_id == divisor_table_id as well
+
+			uint i;
+			for(i = table_id ; i!=0 && table[i]==divisor.table[i] ; --i);
+			
+			if( table[i] < divisor.table[i] )
+			{
+				// divisor is greater than 'this'
+
+				if( remainder )
+					*remainder = *this;
+
+				SetZero();
+
+				TTMATH_LOG("UInt::Div2_DivisorGreaterOrEqual")
+
+			return true;
+			}
+			else
+			if( table[i] == divisor.table[i] )
+			{
+				// divisor is equal 'this'
+
+				if( remainder )
+					remainder->SetZero();
+
+				SetOne();
+
+				TTMATH_LOG("UInt::Div2_DivisorGreaterOrEqual")
+
+			return true;
+			}
+		}
+
+		TTMATH_LOG("UInt::Div2_DivisorGreaterOrEqual")
+
+	return false;
+	}
+
+
+public:
+
+	/*!
+		the third division algorithm
+	*/
+	uint Div3(const UInt<value_size> & ss2, UInt<value_size> * remainder = 0)
+	{
+		if( this == &ss2 )
+		{
+			UInt<value_size> copy_ss2(ss2);
+			return Div3Ref(copy_ss2, remainder);
+		}
+		else
+		{
+			return Div3Ref(ss2, remainder);
+		}
+	}
+
+
+	/*!
+		the third division algorithm
+	*/
+	uint Div3(const UInt<value_size> & ss2, UInt<value_size> & remainder)
+	{
+		return Div3(ss2, &remainder);
+	}
+
+
+private:
+
+	/*!
+		the third division algorithm
+
+		this algorithm is described in the following book:
+			"The art of computer programming 2" (4.3.1 page 272)
+			Donald E. Knuth 
+		!! give the description here (from the book)
+	*/
+	uint Div3Ref(const UInt<value_size> & v, UInt<value_size> * remainder = 0)
+	{
+	uint m,n, test;
+
+		test = Div_StandardTest(v, m, n, remainder);
+		if( test < 2 )
+			return test;
+
+		if( n == 0 )
+		{
+			uint r;
+			DivInt( v.table[0], &r );
+
+			if( remainder )
+			{
+				remainder->SetZero();
+				remainder->table[0] = r;
+			}
+
+			TTMATH_LOG("UInt::Div3")
+
+		return 0;
+		}
+
+
+		// we can only use the third division algorithm when 
+		// the divisor is greater or equal 2^32 (has more than one 32-bit word)
+		++m;
+		++n;
+		m = m - n; 
+		Div3_Division(v, remainder, m, n);
+
+		TTMATH_LOG("UInt::Div3")
+
+	return 0;
+	}
+
+
+
+private:
