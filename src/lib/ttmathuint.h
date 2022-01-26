@@ -2525,3 +2525,386 @@ public:
 	{
 		return (table[value_size-1] & TTMATH_UINT_HIGHEST_BIT) != 0;
 	}
+
+
+	/*!
+		this method returns true if the lowest bit of the value is set
+	*/
+	bool IsTheLowestBitSet() const
+	{
+		return (*table & 1) != 0;
+	}
+
+
+	/*!
+		returning true if only the highest bit is set
+	*/
+	bool IsOnlyTheHighestBitSet() const
+	{
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wtautological-compare"
+#endif
+
+		for(uint i=0 ; i<value_size-1 ; ++i)
+			if( table[i] != 0 )
+				return false;
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+		if( table[value_size-1] != TTMATH_UINT_HIGHEST_BIT )
+			return false;
+
+	return true;
+	}
+
+
+	/*!
+		returning true if only the lowest bit is set
+	*/
+	bool IsOnlyTheLowestBitSet() const
+	{
+		if( table[0] != 1 )
+			return false;
+
+		for(uint i=1 ; i<value_size ; ++i)
+			if( table[i] != 0 )
+				return false;
+
+	return true;
+	}
+
+
+	/*!
+		this method returns true if the value is equal zero
+	*/
+	bool IsZero() const
+	{
+		for(uint i=0 ; i<value_size ; ++i)
+			if(table[i] != 0)
+				return false;
+
+	return true;
+	}
+
+
+	/*!
+		returning true if first 'bits' bits are equal zero
+	*/
+	bool AreFirstBitsZero(uint bits) const
+	{
+		TTMATH_ASSERT( bits <= value_size * TTMATH_BITS_PER_UINT )
+
+		uint index = bits / TTMATH_BITS_PER_UINT;
+		uint rest  = bits % TTMATH_BITS_PER_UINT;
+		uint i;
+
+		for(i=0 ; i<index ; ++i)
+			if(table[i] != 0 )
+				return false;
+
+		if( rest == 0 )
+			return true;
+
+		uint mask = TTMATH_UINT_MAX_VALUE >> (TTMATH_BITS_PER_UINT - rest);
+
+	return (table[i] & mask) == 0;
+	}
+
+
+
+	/*!
+	*
+	*	conversion methods
+	*
+	*/
+
+
+
+	/*!
+		this method converts an UInt<another_size> type to this class
+
+		this operation has mainly sense if the value from p is 
+		equal or smaller than that one which is returned from UInt<value_size>::SetMax()
+
+		it returns a carry if the value 'p' is too big
+	*/
+	template<uint argument_size>
+	uint FromUInt(const UInt<argument_size> & p)
+	{
+		uint min_size = (value_size < argument_size)? value_size : argument_size;
+		uint i;
+
+		for(i=0 ; i<min_size ; ++i)
+			table[i] = p.table[i];
+
+
+		if( value_size > argument_size )
+		{	
+			// 'this' is longer than 'p'
+
+			for( ; i<value_size ; ++i)
+				table[i] = 0;
+		}
+		else
+		{
+			for( ; i<argument_size ; ++i)
+				if( p.table[i] != 0 )
+				{
+					TTMATH_LOGC("UInt::FromUInt(UInt<>)", 1)
+					return 1;
+				}
+		}
+
+		TTMATH_LOGC("UInt::FromUInt(UInt<>)", 0)
+
+	return 0;
+	}
+
+
+	/*!
+		this method converts an UInt<another_size> type to this class
+
+		this operation has mainly sense if the value from p is 
+		equal or smaller than that one which is returned from UInt<value_size>::SetMax()
+
+		it returns a carry if the value 'p' is too big
+	*/
+	template<uint argument_size>
+	uint FromInt(const UInt<argument_size> & p)
+	{
+		return FromUInt(p);
+	}
+
+
+	/*!
+		this method converts the uint type to this class
+	*/
+	uint FromUInt(uint value)
+	{
+		for(uint i=1 ; i<value_size ; ++i)
+			table[i] = 0;
+
+		table[0] = value;
+
+		TTMATH_LOG("UInt::FromUInt(uint)")
+
+		// there'll never be a carry here
+	return 0;
+	}
+
+
+	/*!
+		this method converts the uint type to this class
+	*/
+	uint FromInt(uint value)
+	{
+		return FromUInt(value);
+	}
+
+
+	/*!
+		this method converts the sint type to this class
+	*/
+	uint FromInt(sint value)
+	{
+		uint c = FromUInt(uint(value));
+
+		if( c || value < 0 )
+			return 1;
+
+	return 0;
+	}
+
+
+	/*!
+		this operator converts an UInt<another_size> type to this class
+
+		it doesn't return a carry
+	*/
+	template<uint argument_size>
+	UInt<value_size> & operator=(const UInt<argument_size> & p)
+	{
+		FromUInt(p);
+
+	return *this;
+	}
+
+
+	/*!
+		the assignment operator
+	*/
+	UInt<value_size> & operator=(const UInt<value_size> & p)
+	{
+		for(uint i=0 ; i<value_size ; ++i)
+			table[i] = p.table[i];
+
+		TTMATH_LOG("UInt::operator=(UInt<>)")
+
+		return *this;
+	}
+
+
+	/*!
+		this method converts the uint type to this class
+	*/
+	UInt<value_size> & operator=(uint i)
+	{
+		FromUInt(i);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting the uint to this class
+	*/
+	UInt(uint i)
+	{
+		FromUInt(i);
+	}
+
+
+	/*!
+		this method converts the sint type to this class
+	*/
+	UInt<value_size> & operator=(sint i)
+	{
+		FromInt(i);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting the sint to this class
+
+		look at the description of UInt::operator=(sint)
+	*/
+	UInt(sint i)
+	{
+		FromInt(i);
+	}
+
+
+#ifdef TTMATH_PLATFORM32
+
+
+	/*!
+		this method converts unsigned 64 bit int type to this class
+		***this method is created only on a 32bit platform***
+	*/
+	uint FromUInt(ulint n)
+	{
+		table[0] = (uint)n;
+
+		if( value_size == 1 )
+		{
+			uint c = ((n >> TTMATH_BITS_PER_UINT) == 0) ? 0 : 1;
+
+			TTMATH_LOGC("UInt::FromUInt(ulint)", c)
+			return c;
+		}
+
+		table[1] = (uint)(n >> TTMATH_BITS_PER_UINT);
+
+		for(uint i=2 ; i<value_size ; ++i)
+			table[i] = 0;
+
+		TTMATH_LOG("UInt::FromUInt(ulint)")
+
+	return 0;
+	}
+
+
+	/*!
+		this method converts unsigned 64 bit int type to this class
+		***this method is created only on a 32bit platform***
+	*/
+	uint FromInt(ulint n)
+	{
+		return FromUInt(n);
+	}
+
+
+	/*!
+		this method converts signed 64 bit int type to this class
+		***this method is created only on a 32bit platform***
+	*/
+	uint FromInt(slint n)
+	{
+		uint c = FromUInt(ulint(n));
+
+		if( c || n < 0 )
+			return 1;
+
+	return 0;
+	}
+
+
+	/*!
+		this operator converts unsigned 64 bit int type to this class
+		***this operator is created only on a 32bit platform***
+	*/
+	UInt<value_size> & operator=(ulint n)
+	{
+		FromUInt(n);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting unsigned 64 bit int to this class
+		***this constructor is created only on a 32bit platform***
+	*/
+	UInt(ulint n)
+	{
+		FromUInt(n);
+	}
+
+
+	/*!
+		this operator converts signed 64 bit int type to this class
+		***this operator is created only on a 32bit platform***
+	*/
+	UInt<value_size> & operator=(slint n)
+	{
+		FromInt(n);
+
+	return *this;
+	}
+
+
+	/*!
+		a constructor for converting signed 64 bit int to this class
+		***this constructor is created only on a 32bit platform***
+	*/
+	UInt(slint n)
+	{
+		FromInt(n);
+	}
+
+#endif
+
+
+
+#ifdef TTMATH_PLATFORM64
+
+
+	/*!
+		this method converts 32 bit unsigned int type to this class
+		***this operator is created only on a 64bit platform***
+	*/
+	uint FromUInt(unsigned int i)
+	{
+		return FromUInt(uint(i));
+	}
+
+	/*!
+		this method converts 32 bit unsigned int type to this class
+		***this operator is created only on a 64bit platform***
+	*/
+	uint FromInt(unsigned int i)
+	{
