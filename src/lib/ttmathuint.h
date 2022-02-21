@@ -3593,3 +3593,350 @@ public:
 		for( ; i>=0 ; --i)
 		{
 			if( table[i] != l.table[i] )
+				return table[i] > l.table[i];
+		}
+
+	// they're equal
+	return false;
+	}
+
+
+	/*!
+		this method returns true if 'this' is equal 'l'
+
+		'index' is an index of the first word from will be the comparison performed
+		(note: we start the comparison from back - from the last word, when index is -1 /default/
+		it is automatically set into the last word)
+	*/
+	bool CmpEqual(const UInt<value_size> & l, sint index = -1) const
+	{
+	sint i;
+
+		if( index==-1 || index>=sint(value_size) )
+			i = value_size - 1;
+		else
+			i = index;
+
+
+		for( ; i>=0 ; --i)
+			if( table[i] != l.table[i] )
+				return false;
+
+	return true;
+	}
+
+
+
+	/*!
+		this method returns true if 'this' is smaller than or equal 'l'
+
+		'index' is an index of the first word from will be the comparison performed
+		(note: we start the comparison from back - from the last word, when index is -1 /default/
+		it is automatically set into the last word)
+	*/
+	bool CmpSmallerEqual(const UInt<value_size> & l, sint index=-1) const
+	{
+	sint i;
+
+		if( index==-1 || index>=sint(value_size) )
+			i = value_size - 1;
+		else
+			i = index;
+
+
+		for( ; i>=0 ; --i)
+		{
+			if( table[i] != l.table[i] )
+				return table[i] < l.table[i];
+		}
+
+	// they're equal
+	return true;
+	}
+
+
+
+	/*!
+		this method returns true if 'this' is bigger than or equal 'l'
+
+		'index' is an index of the first word from will be the comparison performed
+		(note: we start the comparison from back - from the last word, when index is -1 /default/
+		it is automatically set into the last word)
+	*/
+	bool CmpBiggerEqual(const UInt<value_size> & l, sint index=-1) const
+	{
+	sint i;
+
+		if( index==-1 || index>=sint(value_size) )
+			i = value_size - 1;
+		else
+			i = index;
+
+
+		for( ; i>=0 ; --i)
+		{
+			if( table[i] != l.table[i] )
+				return table[i] > l.table[i];
+		}
+
+	// they're equal
+	return true;
+	}
+
+
+	/*
+		operators for comparising
+	*/
+
+	bool operator<(const UInt<value_size> & l) const
+	{
+		return CmpSmaller(l);
+	}
+
+
+	bool operator>(const UInt<value_size> & l) const
+	{
+		return CmpBigger(l);
+	}
+
+
+	bool operator==(const UInt<value_size> & l) const
+	{
+		return CmpEqual(l);
+	}
+
+
+	bool operator!=(const UInt<value_size> & l) const
+	{
+		return !operator==(l);
+	}
+
+
+	bool operator<=(const UInt<value_size> & l) const
+	{
+		return CmpSmallerEqual(l);
+	}
+
+	bool operator>=(const UInt<value_size> & l) const
+	{
+		return CmpBiggerEqual(l);
+	}
+
+
+	/*!
+	*
+	*	standard mathematical operators 
+	*
+	*/
+
+	UInt<value_size> operator-(const UInt<value_size> & p2) const
+	{
+	UInt<value_size> temp(*this);
+
+		temp.Sub(p2);
+
+	return temp;
+	}
+
+	UInt<value_size> & operator-=(const UInt<value_size> & p2)
+	{
+		Sub(p2);
+
+	return *this;
+	}
+
+	UInt<value_size> operator+(const UInt<value_size> & p2) const
+	{
+	UInt<value_size> temp(*this);
+
+		temp.Add(p2);
+
+	return temp;
+	}
+
+	UInt<value_size> & operator+=(const UInt<value_size> & p2)
+	{
+		Add(p2);
+
+	return *this;
+	}
+
+
+	UInt<value_size> operator*(const UInt<value_size> & p2) const
+	{
+	UInt<value_size> temp(*this);
+
+		temp.Mul(p2);
+
+	return temp;
+	}
+
+
+	UInt<value_size> & operator*=(const UInt<value_size> & p2)
+	{
+		Mul(p2);
+
+	return *this;
+	}
+
+
+	UInt<value_size> operator/(const UInt<value_size> & p2) const
+	{
+	UInt<value_size> temp(*this);
+
+		temp.Div(p2);
+
+	return temp;
+	}
+
+
+	UInt<value_size> & operator/=(const UInt<value_size> & p2)
+	{
+		Div(p2);
+
+	return *this;
+	}
+
+
+	UInt<value_size> operator%(const UInt<value_size> & p2) const
+	{
+	UInt<value_size> temp(*this);
+	UInt<value_size> remainder;
+	
+		temp.Div( p2, remainder );
+
+	return remainder;
+	}
+
+
+	UInt<value_size> & operator%=(const UInt<value_size> & p2)
+	{
+	UInt<value_size> remainder;
+	
+		Div( p2, remainder );
+		operator=(remainder);
+
+	return *this;
+	}
+
+
+	/*!
+		Prefix operator e.g ++variable
+	*/
+	UInt<value_size> & operator++()
+	{
+		AddOne();
+
+	return *this;
+	}
+
+
+	/*!
+		Postfix operator e.g variable++
+	*/
+	UInt<value_size> operator++(int)
+	{
+	UInt<value_size> temp( *this );
+
+		AddOne();
+
+	return temp;
+	}
+
+
+	UInt<value_size> & operator--()
+	{
+		SubOne();
+
+	return *this;
+	}
+
+
+	UInt<value_size> operator--(int)
+	{
+	UInt<value_size> temp( *this );
+
+		SubOne();
+
+	return temp;
+	}
+
+
+
+	/*!
+	*
+	*	bitwise operators
+	*
+	*/
+
+	UInt<value_size> operator~() const
+	{
+		UInt<value_size> temp( *this );
+
+		temp.BitNot();
+
+	return temp;
+	}
+
+
+	UInt<value_size> operator&(const UInt<value_size> & p2) const
+	{
+		UInt<value_size> temp( *this );
+
+		temp.BitAnd(p2);
+
+	return temp;
+	}
+
+
+	UInt<value_size> & operator&=(const UInt<value_size> & p2)
+	{
+		BitAnd(p2);
+
+	return *this;
+	}
+
+
+	UInt<value_size> operator|(const UInt<value_size> & p2) const
+	{
+		UInt<value_size> temp( *this );
+
+		temp.BitOr(p2);
+
+	return temp;
+	}
+
+
+	UInt<value_size> & operator|=(const UInt<value_size> & p2)
+	{
+		BitOr(p2);
+
+	return *this;
+	}
+
+
+	UInt<value_size> operator^(const UInt<value_size> & p2) const
+	{
+		UInt<value_size> temp( *this );
+
+		temp.BitXor(p2);
+
+	return temp;
+	}
+
+
+	UInt<value_size> & operator^=(const UInt<value_size> & p2)
+	{
+		BitXor(p2);
+
+	return *this;
+	}
+
+
+	UInt<value_size> operator>>(int move) const
+	{
+	UInt<value_size> temp( *this );
+
+		temp.Rcr(move);
+
+	return temp;
