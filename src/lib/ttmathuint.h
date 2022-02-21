@@ -3253,3 +3253,343 @@ protected:
 	/*!
 		an auxiliary method for converting into the string
 		it returns the log (with the base 2) from x
+		where x is in <2;16>
+	*/
+	double ToStringLog2(uint x) const
+	{
+		static double log_tab[] = {
+			1.000000000000000000,
+			0.630929753571457437,
+			0.500000000000000000,
+			0.430676558073393050,
+			0.386852807234541586,
+			0.356207187108022176,
+			0.333333333333333333,
+			0.315464876785728718,
+			0.301029995663981195,
+			0.289064826317887859,
+			0.278942945651129843,
+			0.270238154427319741,
+			0.262649535037193547,
+			0.255958024809815489,
+			0.250000000000000000
+		};
+
+		if( x<2 || x>16 )
+			return 0;
+
+	return log_tab[x-2];
+	}
+
+
+public:
+
+
+	/*!	
+		an auxiliary method for converting to a string
+		it's used from Int::ToString() too (negative is set true then)
+	*/
+	template<class string_type>
+	void ToStringBase(string_type & result, uint b = 10, bool negative = false) const
+	{
+	UInt<value_size> temp(*this);
+	uint rest, table_id, index, digits;
+	double digits_d;
+	char character;
+
+		result.clear();
+
+		if( b<2 || b>16 )
+			return;
+
+		if( !FindLeadingBit(table_id, index) )
+		{
+			result = '0';
+			return;
+		}
+
+		if( negative )
+			result = '-';
+
+		digits_d  = table_id; // for not making an overflow in uint type
+		digits_d *= TTMATH_BITS_PER_UINT;
+		digits_d += index + 1;
+		digits_d *= ToStringLog2(b);
+		digits = static_cast<uint>(digits_d) + 3; // plus some epsilon
+
+		if( result.capacity() < digits )
+			result.reserve(digits);
+
+		do
+		{
+			temp.DivInt(b, &rest);
+			character = static_cast<char>(Misc::DigitToChar(rest));
+			result.insert(result.end(), character);
+		}
+		while( !temp.IsZero() );
+
+		size_t i1 = negative ? 1 : 0; // the first is a hyphen (when negative is true)
+		size_t i2 = result.size() - 1;
+
+		for( ; i1 < i2 ; ++i1, --i2 )
+		{
+			char tempc = static_cast<char>(result[i1]);
+			result[i1] = result[i2];
+			result[i2] = tempc;
+		}
+	}
+
+
+
+	/*!	
+		this method converts the value to a string with a base equal 'b'
+	*/
+	void ToString(std::string & result, uint b = 10) const
+	{
+		return ToStringBase(result, b);
+	}
+
+
+	std::string ToString(uint b = 10) const
+	{
+		std::string result;
+		ToStringBase(result, b);
+	
+	return result;
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	void ToString(std::wstring & result, uint b = 10) const
+	{
+		return ToStringBase(result, b);
+	}
+
+	std::wstring ToWString(uint b = 10) const
+	{
+		std::wstring result;
+		ToStringBase(result, b);
+	
+	return result;
+	}
+
+#endif
+
+
+
+private:
+
+	/*!
+		an auxiliary method for converting from a string
+	*/
+	template<class char_type>
+	uint FromStringBase(const char_type * s, uint b = 10, const char_type ** after_source = 0, bool * value_read = 0)
+	{
+	UInt<value_size> base( b );
+	UInt<value_size> temp;
+	sint z;
+	uint c = 0;
+
+		SetZero();
+		temp.SetZero();
+		Misc::SkipWhiteCharacters(s);
+
+		if( after_source )
+			*after_source = s;
+
+		if( value_read )
+			*value_read = false;
+
+		if( b<2 || b>16 )
+			return 1;
+
+
+		for( ; (z=Misc::CharToDigit(*s, b)) != -1 ; ++s)
+		{
+			if( value_read )
+				*value_read = true;
+
+			if( c == 0 )
+			{
+				temp.table[0] = z;
+
+				c += Mul(base); // !! IMPROVE ME: there can be used MulInt here
+				c += Add(temp);
+			}
+		}		
+
+		if( after_source )
+			*after_source = s;
+
+		TTMATH_LOGC("UInt::FromString", c)
+
+	return (c==0)? 0 : 1;
+	}
+
+
+public:
+
+
+	/*!
+		this method converts a string into its value
+		it returns carry=1 if the value will be too big or an incorrect base 'b' is given
+
+		string is ended with a non-digit value, for example:
+			"12" will be translated to 12
+			as well as:
+			"12foo" will be translated to 12 too
+
+		existing first white characters will be ommited
+
+		if the value from s is too large the rest digits will be skipped
+
+		after_source (if exists) is pointing at the end of the parsed string
+
+		value_read (if exists) tells whether something has actually been read (at least one digit)
+	*/
+	uint FromString(const char * s, uint b = 10, const char ** after_source = 0, bool * value_read = 0)
+	{
+		return FromStringBase(s, b, after_source, value_read);
+	}
+
+
+	/*!
+		this method converts a string into its value
+
+		(it returns carry=1 if the value will be too big or an incorrect base 'b' is given)
+	*/
+	uint FromString(const std::string & s, uint b = 10)
+	{
+		return FromString( s.c_str(), b );
+	}
+
+
+	/*!
+		this operator converts a string into its value (with base = 10)
+	*/
+	UInt<value_size> & operator=(const char * s)
+	{
+		FromString(s);
+
+	return *this;
+	}
+
+
+	/*!
+		this operator converts a string into its value (with base = 10)
+	*/
+	UInt<value_size> & operator=(const std::string & s)
+	{
+		FromString( s.c_str() );
+
+	return *this;
+	}
+
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		this method converts a string into its value
+	*/
+	uint FromString(const wchar_t * s, uint b = 10, const wchar_t ** after_source = 0, bool * value_read = 0)
+	{
+		return FromStringBase(s, b, after_source, value_read);
+	}
+
+
+	/*!
+		this method converts a string into its value
+
+		(it returns carry=1 if the value will be too big or an incorrect base 'b' is given)
+	*/
+	uint FromString(const std::wstring & s, uint b = 10)
+	{
+		return FromString( s.c_str(), b );
+	}
+
+
+	/*!
+		this operator converts a string into its value (with base = 10)
+	*/
+	UInt<value_size> & operator=(const wchar_t * s)
+	{
+		FromString(s);
+
+	return *this;
+	}
+
+
+	/*!
+		this operator converts a string into its value (with base = 10)
+	*/
+	UInt<value_size> & operator=(const std::wstring & s)
+	{
+		FromString( s.c_str() );
+
+	return *this;
+	}
+
+#endif
+
+
+	/*!
+	*
+	*	methods for comparing
+	*
+	*/
+
+
+	/*!
+		this method returns true if 'this' is smaller than 'l'
+
+		'index' is an index of the first word from will be the comparison performed
+		(note: we start the comparison from back - from the last word, when index is -1 /default/
+		it is automatically set into the last word)
+		I introduced it for some kind of optimization made in the second division algorithm (Div2)
+	*/
+	bool CmpSmaller(const UInt<value_size> & l, sint index = -1) const
+	{
+	sint i;
+
+		if( index==-1 || index>=sint(value_size) )
+			i = value_size - 1;
+		else
+			i = index;
+
+
+		for( ; i>=0 ; --i)
+		{
+			if( table[i] != l.table[i] )
+				return table[i] < l.table[i];
+		}
+
+	// they're equal
+	return false;
+	}
+
+
+
+	/*!
+		this method returns true if 'this' is bigger than 'l'
+
+		'index' is an index of the first word from will be the comparison performed
+		(note: we start the comparison from back - from the last word, when index is -1 /default/
+		it is automatically set into the last word)
+
+		I introduced it for some kind of optimization made in the second division algorithm (Div2)
+	*/
+	bool CmpBigger(const UInt<value_size> & l, sint index = -1) const
+	{
+	sint i;
+
+		if( index==-1 || index>=sint(value_size) )
+			i = value_size - 1;
+		else
+			i = index;
+
+
+		for( ; i>=0 ; --i)
+		{
+			if( table[i] != l.table[i] )
