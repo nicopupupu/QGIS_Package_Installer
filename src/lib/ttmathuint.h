@@ -3940,3 +3940,227 @@ public:
 		temp.Rcr(move);
 
 	return temp;
+	}
+
+
+	UInt<value_size> & operator>>=(int move)
+	{
+		Rcr(move);
+
+	return *this;
+	}
+
+
+	UInt<value_size> operator<<(int move) const
+	{
+	UInt<value_size> temp( *this );
+
+		temp.Rcl(move);
+
+	return temp;
+	}
+
+
+	UInt<value_size> & operator<<=(int move)
+	{
+		Rcl(move);
+
+	return *this;
+	}
+
+
+	/*!
+	*
+	*	input/output operators for standard streams
+	*	
+	*	(they are very simple, in the future they should be changed)
+	*
+	*/
+
+
+private:
+
+
+	/*!
+		an auxiliary method for outputing to standard streams
+	*/
+	template<class ostream_type, class string_type>
+	static ostream_type & OutputToStream(ostream_type & s, const UInt<value_size> & l)
+	{
+	string_type ss;
+
+		l.ToString(ss);
+		s << ss;
+
+	return s;
+	}
+
+
+public:
+
+
+	/*!
+		output to standard streams
+	*/
+	friend std::ostream & operator<<(std::ostream & s, const UInt<value_size> & l)
+	{
+		return OutputToStream<std::ostream, std::string>(s, l);
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		output to standard streams
+	*/
+	friend std::wostream & operator<<(std::wostream & s, const UInt<value_size> & l)
+	{
+		return OutputToStream<std::wostream, std::wstring>(s, l);
+	}
+
+#endif
+
+
+
+private:
+
+	/*!
+		an auxiliary method for reading from standard streams
+	*/
+	template<class istream_type, class string_type, class char_type>
+	static istream_type & InputFromStream(istream_type & s, UInt<value_size> & l)
+	{
+	string_type ss;
+	
+	// char or wchar_t for operator>>
+	char_type z;
+	
+		// operator>> omits white characters if they're set for ommiting
+		s >> z;
+
+		// we're reading only digits (base=10)
+		while( s.good() && Misc::CharToDigit(z, 10)>=0 )
+		{
+			ss += z;
+			z = static_cast<char_type>(s.get());
+		}
+
+		// we're leaving the last read character
+		// (it's not belonging to the value)
+		s.unget();
+
+		l.FromString(ss);
+
+	return s;
+	}
+
+public:
+
+
+	/*!
+		input from standard streams
+	*/
+	friend std::istream & operator>>(std::istream & s, UInt<value_size> & l)
+	{
+		return InputFromStream<std::istream, std::string, char>(s, l);
+	}
+
+
+#ifndef TTMATH_DONT_USE_WCHAR
+
+	/*!
+		input from standard streams
+	*/
+	friend std::wistream & operator>>(std::wistream & s, UInt<value_size> & l)
+	{
+		return InputFromStream<std::wistream, std::wstring, wchar_t>(s, l);
+	}
+
+#endif
+
+
+	/*
+		Following methods are defined in:
+			ttmathuint_x86.h
+			ttmathuint_x86_64.h
+			ttmathuint_noasm.h
+	*/
+
+#ifdef TTMATH_NOASM
+	static uint AddTwoWords(uint a, uint b, uint carry, uint * result);
+	static uint SubTwoWords(uint a, uint b, uint carry, uint * result);
+
+#ifdef TTMATH_PLATFORM64
+
+	union uint_
+	{
+		struct 
+		{
+			unsigned int low;  // 32 bit 
+			unsigned int high; // 32 bit
+		} u_;
+
+		uint u;                // 64 bit
+	};
+
+
+	static void DivTwoWords2(uint a,uint b, uint c, uint * r, uint * rest);
+	static uint DivTwoWordsNormalize(uint_ & a_, uint_ & b_, uint_ & c_);
+	static uint DivTwoWordsUnnormalize(uint u, uint d);
+	static unsigned int DivTwoWordsCalculate(uint_ u_, unsigned int u3, uint_ v_);
+	static void MultiplySubtract(uint_ & u_, unsigned int & u3, unsigned int & q, uint_ v_);
+
+#endif // TTMATH_PLATFORM64
+#endif // TTMATH_NOASM
+
+
+private:
+	uint Rcl2_one(uint c);
+	uint Rcr2_one(uint c);
+	uint Rcl2(uint bits, uint c);
+	uint Rcr2(uint bits, uint c);
+
+public:
+	static const char * LibTypeStr();
+	static LibTypeCode LibType();
+	uint Add(const UInt<value_size> & ss2, uint c=0);
+	uint AddInt(uint value, uint index = 0);
+	uint AddTwoInts(uint x2, uint x1, uint index);
+	static uint AddVector(const uint * ss1, const uint * ss2, uint ss1_size, uint ss2_size, uint * result);
+	uint Sub(const UInt<value_size> & ss2, uint c=0);
+	uint SubInt(uint value, uint index = 0);
+	static uint SubVector(const uint * ss1, const uint * ss2, uint ss1_size, uint ss2_size, uint * result);
+	static sint FindLeadingBitInWord(uint x);
+	static sint FindLowestBitInWord(uint x);
+	static uint SetBitInWord(uint & value, uint bit);
+	static void MulTwoWords(uint a, uint b, uint * result_high, uint * result_low);
+	static void DivTwoWords(uint a,uint b, uint c, uint * r, uint * rest);
+
+};
+
+
+
+/*!
+	this specialization is needed in order to not confused the compiler "error: ISO C++ forbids zero-size array"
+	when compiling Mul3Big2() method
+*/
+template<>
+class UInt<0>
+{
+public:
+	uint table[1];
+
+	void Mul2Big(const UInt<0> &, UInt<0> &) { TTMATH_ASSERT(false) };
+	void SetZero() { TTMATH_ASSERT(false) };
+	uint AddTwoInts(uint, uint, uint) { TTMATH_ASSERT(false) return 0; };
+};
+
+
+} //namespace
+
+
+#include "ttmathuint_x86.h"
+#include "ttmathuint_x86_64.h"
+#include "ttmathuint_noasm.h"
+
+#endif
