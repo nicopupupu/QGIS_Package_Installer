@@ -770,3 +770,248 @@ namespace ttmath
 		* WARNING:
 		* the c has to be suitably large for the result being keeped in one word,
 		* if c is equal zero there'll be a hardware interruption (0)
+		* and probably the end of your program
+		*
+	*/
+	template<uint value_size>
+	void UInt<value_size>::DivTwoWords(uint a, uint b, uint c, uint * r, uint * rest)
+	{
+	// (a < c ) for the result to be one word
+	TTMATH_ASSERT( c != 0 && a < c )
+
+	#ifdef TTMATH_PLATFORM32
+
+		union
+		{
+			struct
+			{
+				uint low;  // 32 bits
+				uint high; // 32 bits
+			} u_;
+
+			ulint u;       // 64 bits
+		} ab;
+
+		ab.u_.high = a;
+		ab.u_.low  = b;
+
+		*r    = uint(ab.u / c);
+		*rest = uint(ab.u % c);
+
+	#else
+
+		uint_ c_;
+		c_.u = c;
+
+
+		if( a == 0 )
+		{
+			*r    = b / c;
+			*rest = b % c;
+		}
+		else
+		if( c_.u_.high == 0 )
+		{
+			// higher half of 'c' is zero
+			// then higher half of 'a' is zero too (look at the asserts at the beginning - 'a' is smaller than 'c')
+			uint_ a_, b_, res_, temp1, temp2;
+
+			a_.u = a;
+			b_.u = b;
+
+			temp1.u_.high = a_.u_.low;
+			temp1.u_.low  = b_.u_.high;
+
+			res_.u_.high  = (unsigned int)(temp1.u / c);
+			temp2.u_.high = (unsigned int)(temp1.u % c);
+			temp2.u_.low  = b_.u_.low;
+			
+			res_.u_.low  = (unsigned int)(temp2.u / c);
+			*rest        = temp2.u % c;
+
+			*r = res_.u;
+		}
+		else
+		{
+			return DivTwoWords2(a, b, c,  r,  rest);
+		}
+
+	#endif
+	}
+
+
+#ifdef TTMATH_PLATFORM64
+
+
+	/*!
+		this method is available only on 64bit platforms
+		
+		the same algorithm like the third division algorithm in ttmathuint.h
+		but now with the radix=2^32
+	*/
+	template<uint value_size>
+	void UInt<value_size>::DivTwoWords2(uint a, uint b, uint c, uint * r, uint * rest)
+	{
+		// a is not zero
+		// c_.u_.high is not zero
+
+		uint_ a_, b_, c_, u_, q_;
+		unsigned int u3; // 32 bit
+
+		a_.u  = a;
+		b_.u  = b;
+		c_.u  = c;
+
+		// normalizing
+		uint d = DivTwoWordsNormalize(a_, b_, c_);
+
+		// loop from j=1 to j=0
+		//   the first step (for j=2) is skipped because our result is only in one word,
+		//   (first 'q' were 0 and nothing would be changed)
+		u_.u_.high = a_.u_.high;
+		u_.u_.low  = a_.u_.low;
+		u3         = b_.u_.high;
+		q_.u_.high = DivTwoWordsCalculate(u_, u3, c_);
+		MultiplySubtract(u_, u3, q_.u_.high, c_);
+		
+		u_.u_.high = u_.u_.low;
+		u_.u_.low  = u3;
+		u3         = b_.u_.low;
+		q_.u_.low  = DivTwoWordsCalculate(u_, u3, c_);
+		MultiplySubtract(u_, u3, q_.u_.low, c_);
+
+		*r = q_.u;
+
+		// unnormalizing for the remainder
+		u_.u_.high = u_.u_.low;
+		u_.u_.low  = u3;
+		*rest = DivTwoWordsUnnormalize(u_.u, d);
+	}
+
+
+
+	
+	template<uint value_size>
+	uint UInt<value_size>::DivTwoWordsNormalize(uint_ & a_, uint_ & b_, uint_ & c_)
+	{
+		uint d = 0;
+
+		for( ; (c_.u & TTMATH_UINT_HIGHEST_BIT) == 0 ; ++d )
+		{
+			c_.u = c_.u << 1;
+			
+			uint bc = b_.u & TTMATH_UINT_HIGHEST_BIT; // carry from 'b'
+
+			b_.u = b_.u << 1;
+			a_.u = a_.u << 1; // carry bits from 'a' are simply skipped 
+
+			if( bc )
+				a_.u = a_.u | 1;
+		}
+
+	return d;
+	}
+
+
+	template<uint value_size>
+	uint UInt<value_size>::DivTwoWordsUnnormalize(uint u, uint d)
+	{
+		if( d == 0 )
+			return u;
+
+		u = u >> d;
+
+	return u;
+	}
+
+
+	template<uint value_size>
+	unsigned int UInt<value_size>::DivTwoWordsCalculate(uint_ u_, unsigned int u3, uint_ v_)
+	{
+	bool next_test;
+	uint_ qp_, rp_, temp_;
+
+		qp_.u = u_.u / uint(v_.u_.high);
+		rp_.u = u_.u % uint(v_.u_.high);
+
+		TTMATH_ASSERT( qp_.u_.high==0 || qp_.u_.high==1 )
+
+		do
+		{
+			bool decrease = false;
+
+			if( qp_.u_.high == 1 )
+				decrease = true;
+			else
+			{
+				temp_.u_.high = rp_.u_.low;
+				temp_.u_.low  = u3;
+
+				if( qp_.u * uint(v_.u_.low) > temp_.u )
+					decrease = true;
+			}
+			
+			next_test = false;
+
+			if( decrease )
+			{
+				--qp_.u;
+				rp_.u += v_.u_.high;
+
+				if( rp_.u_.high == 0 ) 
+					next_test = true;
+			}
+		}
+		while( next_test );
+
+	return qp_.u_.low;
+	}
+
+
+	template<uint value_size>
+	void UInt<value_size>::MultiplySubtract(uint_ & u_, unsigned int & u3, unsigned int & q, uint_ v_)
+	{
+	uint_ temp_;
+		
+		uint res_high;
+		uint res_low;
+
+		MulTwoWords(v_.u, q, &res_high, &res_low);
+
+		uint_ sub_res_high_;
+		uint_ sub_res_low_;
+
+		temp_.u_.high = u_.u_.low;
+		temp_.u_.low  = u3;
+
+		uint c = SubTwoWords(temp_.u, res_low, 0, &sub_res_low_.u);
+			
+		temp_.u_.high = 0;
+		temp_.u_.low  = u_.u_.high;
+		c = SubTwoWords(temp_.u, res_high, c, &sub_res_high_.u);
+
+		if( c )
+		{
+			--q;
+
+			c = AddTwoWords(sub_res_low_.u, v_.u, 0, &sub_res_low_.u);
+			AddTwoWords(sub_res_high_.u, 0, c, &sub_res_high_.u);
+		}
+
+		u_.u_.high = sub_res_high_.u_.low;
+		u_.u_.low  = sub_res_low_.u_.high;
+		u3         = sub_res_low_.u_.low;
+	}
+
+#endif // #ifdef TTMATH_PLATFORM64
+
+
+
+} //namespace
+
+
+#endif //ifdef TTMATH_NOASM
+#endif
+
+
+
