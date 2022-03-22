@@ -41,4 +41,24 @@
 #define headerfilettmathuint_x86
 
 
-#
+#ifndef TTMATH_NOASM
+#ifdef TTMATH_PLATFORM32
+
+
+/*!
+	\file ttmathuint_x86.h
+    \brief template class UInt<uint> with assembler code for 32bit x86 processors
+
+	this file is included at the end of ttmathuint.h
+*/
+
+
+
+/*!
+    \brief a namespace for the TTMath library
+*/
+namespace ttmath
+{
+
+	/*!
+		returning the string represents the currect type 
