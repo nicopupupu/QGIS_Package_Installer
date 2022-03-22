@@ -61,4 +61,11 @@ namespace ttmath
 {
 
 	/*!
-		returning the string represents the currect type 
+		returning the string represents the currect type of the library
+		we have following types:
+		  asm_vc_32   - with asm code designed for Microsoft Visual C++ (32 bits)
+		  asm_gcc_32  - with asm code designed for GCC (32 bits)
+		  asm_vc_64   - with asm for VC (64 bit)
+		  asm_gcc_64  - with asm for GCC (64 bit)
+		  no_asm_32   - pure C++ version (32 bit) - without any asm code
+		  no_asm_64   - pure C++
