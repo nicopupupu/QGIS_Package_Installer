@@ -86,4 +86,31 @@ namespace ttmath
 
 
 	/*!
-		returning the currect type of the 
+		returning the currect type of the library
+	*/
+	template<uint value_size>
+	LibTypeCode UInt<value_size>::LibType()
+	{
+		#ifndef __GNUC__
+			LibTypeCode info = asm_vc_32;
+		#endif		
+
+		#ifdef __GNUC__
+			LibTypeCode info = asm_gcc_32;
+		#endif
+
+	return info;
+	}
+
+
+
+	/*!
+	*
+	*	basic mathematic functions
+	*
+	*/
+
+
+	/*!
+		adding ss2 to the this and adding carry if it's defined
+		(this = this 
