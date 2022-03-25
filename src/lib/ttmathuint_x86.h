@@ -113,4 +113,17 @@ namespace ttmath
 
 	/*!
 		adding ss2 to the this and adding carry if it's defined
-		(this = this 
+		(this = this + ss2 + c)
+
+		c must be zero or one (might be a bigger value than 1)
+		function returns carry (1) (if it has been)
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::Add(const UInt<value_size> & ss2, uint c)
+	{
+	uint b = value_size;
+	uint * p1 = table;
+	uint * p2 = const_cast<uint*>(ss2.table);
+
+		// we don't have to use TTMATH_REFERENCE_ASSERT here
+		
