@@ -147,4 +147,35 @@ namespace ttmath
 
 				xor edx,edx          // edx=0
 				mov eax,[c]
-				neg eax              // CF=1 if rax
+				neg eax              // CF=1 if rax!=0 , CF=0 if rax==0
+
+			ttmath_loop:
+				mov eax,[esi+edx*4]
+				adc [ebx+edx*4],eax
+
+				inc edx
+				dec ecx
+			jnz ttmath_loop
+
+				adc ecx, ecx
+				mov [c], ecx
+
+				pop esi
+				pop edx
+				pop ecx
+				pop ebx
+				pop eax
+			}
+
+
+
+		#endif		
+			
+
+		#ifdef __GNUC__
+		uint dummy, dummy2;
+			//	this part should be compiled with gcc
+			
+			__asm__ __volatile__(
+
+				"xorl %%edx, %%edx
