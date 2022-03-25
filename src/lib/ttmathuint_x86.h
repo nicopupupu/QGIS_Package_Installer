@@ -126,4 +126,25 @@ namespace ttmath
 	uint * p2 = const_cast<uint*>(ss2.table);
 
 		// we don't have to use TTMATH_REFERENCE_ASSERT here
-		
+		// this algorithm doesn't require it
+
+		#ifndef __GNUC__
+			
+			//	this part might be compiled with for example visual c
+
+			__asm
+			{
+				push eax
+				push ebx
+				push ecx
+				push edx
+				push esi
+
+				mov ecx,[b]
+				
+				mov ebx,[p1]
+				mov esi,[p2]
+
+				xor edx,edx          // edx=0
+				mov eax,[c]
+				neg eax              // CF=1 if rax
