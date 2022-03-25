@@ -68,4 +68,22 @@ namespace ttmath
 		  asm_vc_64   - with asm for VC (64 bit)
 		  asm_gcc_64  - with asm for GCC (64 bit)
 		  no_asm_32   - pure C++ version (32 bit) - without any asm code
-		  no_asm_64   - pure C++
+		  no_asm_64   - pure C++ version (64 bit) - without any asm code
+	*/
+	template<uint value_size>
+	const char * UInt<value_size>::LibTypeStr()
+	{
+		#ifndef __GNUC__
+			static const char info[] = "asm_vc_32";
+		#endif		
+
+		#ifdef __GNUC__
+			static const char info[] = "asm_gcc_32";
+		#endif
+
+	return info;
+	}
+
+
+	/*!
+		returning the currect type of the 
