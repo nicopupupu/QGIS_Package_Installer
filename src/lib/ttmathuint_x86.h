@@ -192,4 +192,28 @@ namespace ttmath
 				"adc %%ecx, %%ecx				\n"
 
 				: "=c" (c), "=a" (dummy), "=d" (dummy2)
-				: "0" (b),  "1" (c
+				: "0" (b),  "1" (c), "b" (p1), "S" (p2)
+				: "cc", "memory" );
+		#endif
+
+		TTMATH_LOGC("UInt::Add", c)
+
+	return c;
+	}
+
+
+
+	/*!
+		adding one word (at a specific position)
+		and returning a carry (if it has been)
+
+		e.g.
+
+		if we've got (value_size=3):
+			table[0] = 10;
+			table[1] = 30;
+			table[2] = 5;	
+		and we call:
+			AddInt(2,1)
+		then it'll be:
+			table[0] = 10;
