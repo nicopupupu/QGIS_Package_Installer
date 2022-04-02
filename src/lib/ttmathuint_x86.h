@@ -178,4 +178,18 @@ namespace ttmath
 			
 			__asm__ __volatile__(
 
-				"xorl %%edx, %%edx
+				"xorl %%edx, %%edx				\n"
+				"negl %%eax						\n"  // CF=1 if rax!=0 , CF=0 if rax==0
+
+			"1:									\n"
+				"movl (%%esi,%%edx,4), %%eax	\n"
+				"adcl %%eax, (%%ebx,%%edx,4)	\n"
+			
+				"incl %%edx						\n"
+				"decl %%ecx						\n"
+			"jnz 1b								\n"
+
+				"adc %%ecx, %%ecx				\n"
+
+				: "=c" (c), "=a" (dummy), "=d" (dummy2)
+				: "0" (b),  "1" (c
