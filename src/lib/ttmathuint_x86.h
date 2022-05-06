@@ -237,3 +237,32 @@ namespace ttmath
 			{
 				push eax
 				push ebx
+				push ecx
+				push edx
+
+				mov ecx, [b]
+				sub ecx, [index]				
+
+				mov edx, [index]
+				mov ebx, [p1]
+
+				mov eax, [value]
+
+			ttmath_loop:
+				add [ebx+edx*4], eax
+			jnc ttmath_end
+
+				mov eax, 1
+				inc edx
+				dec ecx
+			jnz ttmath_loop
+
+			ttmath_end:
+				setc al
+				movzx edx, al
+				mov [c], edx
+
+				pop edx
+				pop ecx
+				pop ebx
+			
