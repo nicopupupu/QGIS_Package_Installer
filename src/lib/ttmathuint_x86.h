@@ -217,3 +217,23 @@ namespace ttmath
 			AddInt(2,1)
 		then it'll be:
 			table[0] = 10;
+			table[1] = 30 + 2;
+			table[2] = 5;
+
+		of course if there was a carry from table[2] it would be returned
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::AddInt(uint value, uint index)
+	{
+	uint b = value_size;
+	uint * p1 = table;
+	uint c;
+
+		TTMATH_ASSERT( index < value_size )
+
+		#ifndef __GNUC__
+
+			__asm
+			{
+				push eax
+				push ebx
