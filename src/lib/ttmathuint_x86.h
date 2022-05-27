@@ -289,3 +289,23 @@ namespace ttmath
 
 			"2:									\n"
 				"setc %%al						\n"
+				"movzx %%al, %%edx				\n"
+
+				: "=d" (c),    "=a" (dummy), "=c" (dummy2)
+				: "0" (index), "1" (value),  "2" (b), "b" (p1)
+				: "cc", "memory" );
+
+		#endif
+	
+		TTMATH_LOGC("UInt::AddInt", c)
+
+	return c;
+	}
+
+
+
+
+	/*!
+		adding only two unsigned words to the existing value
+		and these words begin on the 'index' position
+		(it's used in the mul
