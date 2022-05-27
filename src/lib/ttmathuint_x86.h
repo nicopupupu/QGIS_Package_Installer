@@ -265,4 +265,27 @@ namespace ttmath
 				pop edx
 				pop ecx
 				pop ebx
+				pop eax
+			}
+
+		#endif		
 			
+
+		#ifdef __GNUC__
+		uint dummy, dummy2;
+
+			__asm__ __volatile__(
+			
+				"subl %%edx, %%ecx 				\n"
+
+			"1:									\n"
+				"addl %%eax, (%%ebx,%%edx,4)	\n"
+			"jnc 2f								\n"
+				
+				"movl $1, %%eax					\n"
+				"incl %%edx						\n"
+				"decl %%ecx						\n"
+			"jnz 1b								\n"
+
+			"2:									\n"
+				"setc %%al						\n"
