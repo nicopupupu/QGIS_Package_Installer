@@ -324,4 +324,16 @@ namespace ttmath
 		and
 			index = 1
 
-		the result of thi
+		the result of this method will be:
+			table[0] = 3
+			table[1] = 4 + x1 = 14
+			table[2] = 5 + x2 = 25
+			table[3] = 6
+		
+		and no carry at the end of table[3]
+
+		(of course if there was a carry in table[2](5+20) then 
+		this carry would be passed to the table[3] etc.)
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::AddTwoInts(uint
