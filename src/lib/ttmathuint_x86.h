@@ -336,4 +336,27 @@ namespace ttmath
 		this carry would be passed to the table[3] etc.)
 	*/
 	template<uint value_size>
-	uint UInt<value_size>::AddTwoInts(uint
+	uint UInt<value_size>::AddTwoInts(uint x2, uint x1, uint index)
+	{
+	uint b = value_size;
+	uint * p1 = table;
+	uint c;
+
+		TTMATH_ASSERT( index < value_size - 1 )
+
+		#ifndef __GNUC__
+			__asm
+			{
+				push eax
+				push ebx
+				push ecx
+				push edx
+
+				mov ecx, [b]
+				sub ecx, [index]				
+
+				mov ebx, [p1]
+				mov edx, [index]
+
+				mov eax, [x1]
+				add [ebx
