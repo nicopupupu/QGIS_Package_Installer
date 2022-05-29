@@ -308,4 +308,20 @@ namespace ttmath
 	/*!
 		adding only two unsigned words to the existing value
 		and these words begin on the 'index' position
-		(it's used in the mul
+		(it's used in the multiplication algorithm 2)
+
+		index should be equal or smaller than value_size-2 (index <= value_size-2)
+		x1 - lower word, x2 - higher word
+
+		for example if we've got value_size equal 4 and:
+			table[0] = 3
+			table[1] = 4
+			table[2] = 5
+			table[3] = 6
+		then let
+			x1 = 10
+			x2 = 20
+		and
+			index = 1
+
+		the result of thi
