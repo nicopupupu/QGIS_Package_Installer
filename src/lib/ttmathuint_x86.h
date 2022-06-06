@@ -409,3 +409,24 @@ namespace ttmath
 			"jnz 1b								\n"
 
 			"2:									\n"
+				"setc %%al						\n"
+				"movzx %%al, %%eax				\n"
+
+				: "=a" (c), "=c" (dummy), "=d" (dummy2)
+				: "0" (x2), "1" (b),      "2" (index), "b" (p1), "S" (x1)
+				: "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::AddTwoInts", c)
+	
+	return c;
+	}
+
+
+
+	/*!
+		this static method addes one vector to the other
+		'ss1' is larger in size or equal to 'ss2'
+
+		ss1 points to the first (
