@@ -359,4 +359,34 @@ namespace ttmath
 				mov edx, [index]
 
 				mov eax, [x1]
-				add [ebx
+				add [ebx+edx*4], eax
+				inc edx
+				dec ecx
+
+				mov eax, [x2]
+			
+			ttmath_loop:
+				adc [ebx+edx*4], eax
+			jnc ttmath_end
+
+				mov eax, 0
+				inc edx
+				dec ecx
+			jnz ttmath_loop
+
+			ttmath_end:
+				setc al
+				movzx edx, al
+				mov [c], edx
+				
+				pop edx
+				pop ecx
+				pop ebx
+				pop eax
+
+			}
+		#endif		
+			
+
+		#ifdef __GNUC__
+		uint dummy
