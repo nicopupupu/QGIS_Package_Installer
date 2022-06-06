@@ -429,4 +429,14 @@ namespace ttmath
 		this static method addes one vector to the other
 		'ss1' is larger in size or equal to 'ss2'
 
-		ss1 points to the first (
+		ss1 points to the first (larger) vector
+		ss2 points to the second vector
+		ss1_size - size of the ss1 (and size of the result too)
+		ss2_size - size of the ss2
+		result - is the result vector (which has size the same as ss1: ss1_size)
+
+		Example:  ss1_size is 5, ss2_size is 3
+		ss1:      ss2:   result (output):
+		  5        1         5+1
+		  4        3         4+3
+		  2        7         2+7
