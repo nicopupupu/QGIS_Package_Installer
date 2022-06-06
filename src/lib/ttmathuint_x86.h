@@ -389,4 +389,23 @@ namespace ttmath
 			
 
 		#ifdef __GNUC__
-		uint dummy
+		uint dummy, dummy2;
+
+			__asm__ __volatile__(
+			
+				"subl %%edx, %%ecx 				\n"
+				
+				"addl %%esi, (%%ebx,%%edx,4) 	\n"
+				"incl %%edx						\n"
+				"decl %%ecx						\n"
+
+			"1:									\n"
+				"adcl %%eax, (%%ebx,%%edx,4)	\n"
+			"jnc 2f								\n"
+
+				"mov $0, %%eax					\n"
+				"incl %%edx						\n"
+				"decl %%ecx						\n"
+			"jnz 1b								\n"
+
+			"2:									\n"
