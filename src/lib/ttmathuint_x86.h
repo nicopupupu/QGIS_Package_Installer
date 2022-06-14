@@ -440,3 +440,10 @@ namespace ttmath
 		  5        1         5+1
 		  4        3         4+3
 		  2        7         2+7
+		  6                  6
+		  9                  9
+	  of course the carry is propagated and will be returned from the last item
+	  (this method is used by the Karatsuba multiplication algorithm)
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::AddVector(const uint * ss1, const uint * ss2, uint ss1_size, uint ss2_s
