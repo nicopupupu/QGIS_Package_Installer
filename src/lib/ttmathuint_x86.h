@@ -446,4 +446,26 @@ namespace ttmath
 	  (this method is used by the Karatsuba multiplication algorithm)
 	*/
 	template<uint value_size>
-	uint UInt<value_size>::AddVector(const uint * ss1, const uint * ss2, uint ss1_size, uint ss2_s
+	uint UInt<value_size>::AddVector(const uint * ss1, const uint * ss2, uint ss1_size, uint ss2_size, uint * result)
+	{
+		TTMATH_ASSERT( ss1_size >= ss2_size )
+
+		uint rest = ss1_size - ss2_size;
+		uint c;
+
+		#ifndef __GNUC__
+
+			//	this part might be compiled with for example visual c
+			__asm
+			{
+				pushad
+
+				mov ecx, [ss2_size]
+				xor edx, edx               // edx = 0, cf = 0
+
+				mov esi, [ss1]
+				mov ebx, [ss2]
+				mov edi, [result]
+
+			ttmath_loop:
+				mov eax
