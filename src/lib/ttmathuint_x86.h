@@ -468,4 +468,20 @@ namespace ttmath
 				mov edi, [result]
 
 			ttmath_loop:
-				mov eax
+				mov eax, [esi+edx*4]
+				adc eax, [ebx+edx*4]
+				mov [edi+edx*4], eax
+
+				inc edx
+				dec ecx
+			jnz ttmath_loop
+
+				adc ecx, ecx             // ecx has the cf state
+
+				mov ebx, [rest]
+				or ebx, ebx
+				jz ttmath_end
+				
+				xor ebx, ebx             // ebx = 0
+				neg ecx                  // setting cf from ecx
+				mov ecx, [rest]          // ecx 
