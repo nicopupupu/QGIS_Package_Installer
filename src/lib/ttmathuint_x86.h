@@ -484,4 +484,31 @@ namespace ttmath
 				
 				xor ebx, ebx             // ebx = 0
 				neg ecx                  // setting cf from ecx
-				mov ecx, [rest]          // ecx 
+				mov ecx, [rest]          // ecx is != 0
+			
+			ttmath_loop2:
+				mov eax, [esi+edx*4]
+				adc eax, ebx 
+				mov [edi+edx*4], eax
+
+				inc edx
+				dec ecx
+			jnz ttmath_loop2
+
+				adc ecx, ecx
+
+			ttmath_end:
+				mov [c], ecx
+
+				popad
+			}
+
+		#endif		
+			
+
+		#ifdef __GNUC__
+			
+		//	this part should be compiled with gcc
+		uint dummy1, dummy2, dummy3;
+
+			__asm__ __volat
