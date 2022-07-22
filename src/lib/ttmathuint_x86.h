@@ -580,4 +580,29 @@ namespace ttmath
 			{
 				push eax
 				push ebx
-				push 
+				push ecx
+				push edx
+				push esi
+
+				mov ecx,[b]
+				
+				mov ebx,[p1]
+				mov esi,[p2]
+
+				xor edx,edx          // edx=0
+				mov eax,[c]
+				neg eax              // CF=1 if rax!=0 , CF=0 if rax==0
+
+			ttmath_loop:
+				mov eax,[esi+edx*4]
+				sbb [ebx+edx*4],eax
+
+				inc edx
+				dec ecx
+			jnz ttmath_loop
+
+				adc ecx, ecx
+				mov [c], ecx
+
+				pop esi
+				pop 
