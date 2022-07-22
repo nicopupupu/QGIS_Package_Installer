@@ -549,3 +549,20 @@ namespace ttmath
 				: "cc", "memory" );
 
 		#endif
+
+		TTMATH_VECTOR_LOGC("UInt::AddVector", c, result, ss1_size)
+
+	return c;
+	}
+
+
+	/*!
+		subtracting ss2 from the 'this' and subtracting
+		carry if it has been defined
+		(this = this - ss2 - c)
+
+		c must be zero or one (might be a bigger value than 1)
+		function returns carry (1) (if it has been)
+	*/
+	template<uint value_size>
+	uint UInt<value_
