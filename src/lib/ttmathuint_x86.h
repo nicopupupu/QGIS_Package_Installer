@@ -565,4 +565,19 @@ namespace ttmath
 		function returns carry (1) (if it has been)
 	*/
 	template<uint value_size>
-	uint UInt<value_
+	uint UInt<value_size>::Sub(const UInt<value_size> & ss2, uint c)
+	{
+	uint b = value_size;
+	uint * p1 = table;
+	uint * p2 = const_cast<uint*>(ss2.table);
+
+		// we don't have to use TTMATH_REFERENCE_ASSERT here
+		// this algorithm doesn't require it
+
+		#ifndef __GNUC__
+
+			__asm
+			{
+				push eax
+				push ebx
+				push 
