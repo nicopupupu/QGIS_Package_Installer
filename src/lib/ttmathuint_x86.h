@@ -605,4 +605,25 @@ namespace ttmath
 				mov [c], ecx
 
 				pop esi
-				pop 
+				pop edx
+				pop ecx
+				pop ebx
+				pop eax
+			}
+
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy, dummy2;
+
+			__asm__  __volatile__(
+
+				"xorl %%edx, %%edx				\n"
+				"negl %%eax						\n"  // CF=1 if rax!=0 , CF=0 if rax==0
+
+			"1:									\n"
+				"movl (%%esi,%%edx,4), %%eax	\n"
+				"sbbl %%eax, (%%ebx,%%edx,4)	\n"
+			
+				"incl %%edx				
