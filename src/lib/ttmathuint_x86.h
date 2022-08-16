@@ -626,4 +626,30 @@ namespace ttmath
 				"movl (%%esi,%%edx,4), %%eax	\n"
 				"sbbl %%eax, (%%ebx,%%edx,4)	\n"
 			
-				"incl %%edx				
+				"incl %%edx						\n"
+				"decl %%ecx						\n"
+			"jnz 1b								\n"
+
+				"adc %%ecx, %%ecx				\n"
+
+				: "=c" (c), "=a" (dummy), "=d" (dummy2)
+				: "0" (b),  "1" (c), "b" (p1), "S" (p2)
+				: "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::Sub", c)
+
+	return c;
+	}
+
+
+
+
+	/*!
+		this method subtracts one word (at a specific position)
+		and returns a carry (if it was)
+
+		e.g.
+
+		if we've go
