@@ -652,4 +652,20 @@ namespace ttmath
 
 		e.g.
 
-		if we've go
+		if we've got (value_size=3):
+			table[0] = 10;
+			table[1] = 30;
+			table[2] = 5;	
+		and we call:
+			SubInt(2,1)
+		then it'll be:
+			table[0] = 10;
+			table[1] = 30 - 2;
+			table[2] = 5;
+
+		of course if there was a carry from table[2] it would be returned
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::SubInt(uint value, uint index)
+	{
+	uint b
