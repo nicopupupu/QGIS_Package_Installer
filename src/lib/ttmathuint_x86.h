@@ -736,4 +736,22 @@ namespace ttmath
 
 				: "=d" (c),    "=a" (dummy), "=c" (dummy2)
 				: "0" (index), "1" (value),  "2" (b), "b" (p1)
-				: 
+				: "cc", "memory" );
+
+		#endif
+		
+		TTMATH_LOGC("UInt::SubInt", c)
+	
+	return c;
+	}
+
+
+
+	/*!
+		this static method subtractes one vector from the other
+		'ss1' is larger in size or equal to 'ss2'
+
+		ss1 points to the first (larger) vector
+		ss2 points to the second vector
+		ss1_size - size of the ss1 (and size of the result too)
+		ss2_size - si
