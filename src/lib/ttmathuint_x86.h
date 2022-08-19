@@ -693,4 +693,33 @@ namespace ttmath
 
 			ttmath_loop:
 				sub [ebx+edx*4], eax
-			jnc ttmath_
+			jnc ttmath_end
+
+				mov eax, 1
+				inc edx
+				dec ecx
+			jnz ttmath_loop
+
+			ttmath_end:
+				setc al
+				movzx edx, al
+				mov [c], edx
+
+				pop edx
+				pop ecx
+				pop ebx
+				pop eax
+			}
+
+		#endif		
+			
+
+		#ifdef __GNUC__
+		uint dummy, dummy2;
+
+			__asm__ __volatile__(
+			
+				"subl %%edx, %%ecx 				\n"
+
+			"1:									\n"
+				"subl %%eax, 
