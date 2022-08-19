@@ -722,4 +722,18 @@ namespace ttmath
 				"subl %%edx, %%ecx 				\n"
 
 			"1:									\n"
-				"subl %%eax, 
+				"subl %%eax, (%%ebx,%%edx,4)	\n"
+			"jnc 2f								\n"
+				
+				"movl $1, %%eax					\n"
+				"incl %%edx						\n"
+				"decl %%ecx						\n"
+			"jnz 1b								\n"
+
+			"2:									\n"
+				"setc %%al						\n"
+				"movzx %%al, %%edx				\n"
+
+				: "=d" (c),    "=a" (dummy), "=c" (dummy2)
+				: "0" (index), "1" (value),  "2" (b), "b" (p1)
+				: 
