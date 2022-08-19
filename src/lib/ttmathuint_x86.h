@@ -668,4 +668,29 @@ namespace ttmath
 	template<uint value_size>
 	uint UInt<value_size>::SubInt(uint value, uint index)
 	{
-	uint b
+	uint b = value_size;
+	uint * p1 = table;
+	uint c;
+
+		TTMATH_ASSERT( index < value_size )
+
+		#ifndef __GNUC__
+
+			__asm
+			{
+				push eax
+				push ebx
+				push ecx
+				push edx
+
+				mov ecx, [b]
+				sub ecx, [index]				
+
+				mov edx, [index]
+				mov ebx, [p1]
+
+				mov eax, [value]
+
+			ttmath_loop:
+				sub [ebx+edx*4], eax
+			jnc ttmath_
