@@ -773,4 +773,20 @@ namespace ttmath
 	{
 		TTMATH_ASSERT( ss1_size >= ss2_size )
 
-	
+		uint rest = ss1_size - ss2_size;
+		uint c;
+
+		#ifndef __GNUC__
+			
+			//	this part might be compiled with for example visual c
+
+			/*
+				the asm code is nearly the same as in AddVector
+				only two instructions 'adc' are changed to 'sbb'
+			*/
+			__asm
+			{
+				pushad
+
+				mov ecx, [ss2_size]
+				xor edx, edx               
