@@ -764,4 +764,13 @@ namespace ttmath
 		  2        7         2-7
 		  6                  6-1  (the borrow from previous item)
 		  9                  9
-		          
+		              return (carry): 0
+	  of course the carry (borrow) is propagated and will be returned from the last item
+	  (this method is used by the Karatsuba multiplication algorithm)
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::SubVector(const uint * ss1, const uint * ss2, uint ss1_size, uint ss2_size, uint * result)
+	{
+		TTMATH_ASSERT( ss1_size >= ss2_size )
+
+	
