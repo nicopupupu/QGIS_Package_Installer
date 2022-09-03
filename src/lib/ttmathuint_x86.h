@@ -810,4 +810,30 @@ namespace ttmath
 				or ebx, ebx
 				jz ttmath_end
 				
-				xor ebx, ebx             /
+				xor ebx, ebx             // ebx = 0
+				neg ecx                  // setting cf from ecx
+				mov ecx, [rest]          // ecx is != 0
+
+			ttmath_loop2:
+				mov eax, [esi+edx*4]
+				sbb eax, ebx 
+				mov [edi+edx*4], eax
+
+				inc edx
+				dec ecx
+			jnz ttmath_loop2
+
+				adc ecx, ecx
+
+			ttmath_end:
+				mov [c], ecx
+
+				popad
+			}
+
+		#endif		
+			
+
+		#ifdef __GNUC__
+			
+		//	this part shoul
