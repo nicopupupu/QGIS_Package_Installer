@@ -789,4 +789,25 @@ namespace ttmath
 				pushad
 
 				mov ecx, [ss2_size]
-				xor edx, edx               
+				xor edx, edx               // edx = 0, cf = 0
+
+				mov esi, [ss1]
+				mov ebx, [ss2]
+				mov edi, [result]
+
+			ttmath_loop:
+				mov eax, [esi+edx*4]
+				sbb eax, [ebx+edx*4]
+				mov [edi+edx*4], eax
+
+				inc edx
+				dec ecx
+			jnz ttmath_loop
+
+				adc ecx, ecx             // ecx has the cf state
+
+				mov ebx, [rest]
+				or ebx, ebx
+				jz ttmath_end
+				
+				xor ebx, ebx             /
