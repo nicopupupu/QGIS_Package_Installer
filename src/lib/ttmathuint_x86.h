@@ -849,4 +849,16 @@ namespace ttmath
 
 				"inc %%edx							\n"
 				"dec %%ecx							\n"
-			"jnz 1b				
+			"jnz 1b									\n"
+
+				"adc %%ecx, %%ecx					\n"   // ecx has the cf state
+				"pop %%eax							\n"   // eax = rest
+
+				"or %%eax, %%eax					\n"
+				"jz 3f								\n"
+				
+				"xor %%ebx, %%ebx					\n"   // ebx = 0
+				"neg %%ecx							\n"   // setting cf from ecx
+				"mov %%eax, %%ecx					\n"   // ecx=rest and is != 0
+			"2:										\n"
+				"mov 
