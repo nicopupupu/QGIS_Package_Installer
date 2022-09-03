@@ -873,4 +873,26 @@ namespace ttmath
 			"3:										\n"
 
 				: "=a" (dummy1), "=b" (dummy2), "=c" (c),       "=d" (dummy3)
-				:                "1" (ss2),     "2" (ss2_size), "3" (rest),   "S" (ss1),  "D" 
+				:                "1" (ss2),     "2" (ss2_size), "3" (rest),   "S" (ss1),  "D" (result)
+				: "cc", "memory" );
+
+		#endif
+
+		TTMATH_VECTOR_LOGC("UInt::SubVector", c, result, ss1_size)
+
+	return c;
+	}
+
+
+
+	/*!
+		this method moves all bits into the left hand side
+		return value <- this <- c
+
+		the lowest *bit* will be held the 'c' and
+		the state of one additional bit (on the left hand side)
+		will be returned
+
+		for example:
+		let this is 001010000
+	
