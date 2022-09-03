@@ -836,4 +836,17 @@ namespace ttmath
 
 		#ifdef __GNUC__
 			
-		//	this part shoul
+		//	this part should be compiled with gcc
+		uint dummy1, dummy2, dummy3;
+
+			__asm__ __volatile__(
+				"push %%edx							\n"
+				"xor %%edx, %%edx					\n"   // edx = 0, cf = 0
+			"1:										\n"
+				"mov (%%esi,%%edx,4), %%eax			\n"
+				"sbb (%%ebx,%%edx,4), %%eax			\n"
+				"mov %%eax, (%%edi,%%edx,4)			\n"
+
+				"inc %%edx							\n"
+				"dec %%ecx							\n"
+			"jnz 1b				
