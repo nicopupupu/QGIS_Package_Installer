@@ -861,4 +861,16 @@ namespace ttmath
 				"neg %%ecx							\n"   // setting cf from ecx
 				"mov %%eax, %%ecx					\n"   // ecx=rest and is != 0
 			"2:										\n"
-				"mov 
+				"mov (%%esi, %%edx, 4), %%eax		\n"
+				"sbb %%ebx, %%eax 					\n"
+				"mov %%eax, (%%edi, %%edx, 4)		\n"
+
+				"inc %%edx							\n"
+				"dec %%ecx							\n"
+			"jnz 2b									\n"
+
+				"adc %%ecx, %%ecx					\n"
+			"3:										\n"
+
+				: "=a" (dummy1), "=b" (dummy2), "=c" (c),       "=d" (dummy3)
+				:                "1" (ss2),     "2" (ss2_size), "3" (rest),   "S" (ss1),  "D" 
