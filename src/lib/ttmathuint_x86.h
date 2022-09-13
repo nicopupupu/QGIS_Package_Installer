@@ -895,4 +895,26 @@ namespace ttmath
 
 		for example:
 		let this is 001010000
-	
+		after Rcl2_one(1) there'll be 010100001 and Rcl2_one returns 0
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::Rcl2_one(uint c)
+	{
+	uint b = value_size;
+	uint * p1 = table;
+
+		#ifndef __GNUC__
+			__asm
+			{
+				push ebx
+				push ecx
+				push edx
+
+				mov ebx, [p1]
+				xor edx, edx
+				mov ecx, [c]
+				neg ecx
+				mov ecx, [b]
+
+			ttmath_loop:
+				rcl dword ptr [ebx+edx*4], 1
