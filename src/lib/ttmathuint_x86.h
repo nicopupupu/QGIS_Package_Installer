@@ -918,3 +918,28 @@ namespace ttmath
 
 			ttmath_loop:
 				rcl dword ptr [ebx+edx*4], 1
+				
+				inc edx
+				dec ecx
+			jnz ttmath_loop
+
+				adc ecx, ecx
+				mov [c], ecx
+				
+				pop edx
+				pop ecx
+				pop ebx
+			}
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy, dummy2;
+
+		__asm__  __volatile__(
+
+			"xorl %%edx, %%edx			\n"   // edx=0
+			"negl %%eax					\n"   // CF=1 if eax!=0 , CF=0 if eax==0
+
+		"1:								\n"
+	
