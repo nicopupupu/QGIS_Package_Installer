@@ -942,4 +942,27 @@ namespace ttmath
 			"negl %%eax					\n"   // CF=1 if eax!=0 , CF=0 if eax==0
 
 		"1:								\n"
-	
+			"rcll $1, (%%ebx, %%edx, 4)	\n"
+
+			"incl %%edx					\n"
+			"decl %%ecx					\n"
+		"jnz 1b							\n"
+
+			"adcl %%ecx, %%ecx			\n"
+
+			: "=c" (c), "=a" (dummy), "=d" (dummy2)
+			: "0" (b),  "1" (c), "b" (p1)
+			: "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::Rcl2_one", c)
+
+	return c;
+	}
+
+
+
+	/*!
+		this method moves all bits into the right hand side
+		c -> this -> ret
