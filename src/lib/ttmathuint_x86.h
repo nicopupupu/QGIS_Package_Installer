@@ -965,4 +965,21 @@ namespace ttmath
 
 	/*!
 		this method moves all bits into the right hand side
-		c -> this -> ret
+		c -> this -> return value
+
+		the highest *bit* will be held the 'c' and
+		the state of one additional bit (on the right hand side)
+		will be returned
+
+		for example:
+		let this is 000000010
+		after Rcr2_one(1) there'll be 100000001 and Rcr2_one returns 0
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::Rcr2_one(uint c)
+	{
+	uint b = value_size;
+	uint * p1 = table;
+
+		#ifndef __GNUC__
+			__as
