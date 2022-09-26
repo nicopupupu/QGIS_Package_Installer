@@ -1012,4 +1012,29 @@ namespace ttmath
 
 		__asm__  __volatile__(
 
-			"negl %%eax						\n"   // CF=1 if eax!=0 , CF=0 if eax
+			"negl %%eax						\n"   // CF=1 if eax!=0 , CF=0 if eax==0
+
+		"1:									\n"
+			"rcrl $1, -4(%%ebx, %%ecx, 4)	\n"
+
+			"decl %%ecx						\n"
+		"jnz 1b								\n"
+
+			"adcl %%ecx, %%ecx				\n"
+
+			: "=c" (c), "=a" (dummy)
+			: "0" (b),  "1" (c), "b" (p1)
+			: "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::Rcr2_one", c)
+
+	return c;
+	}
+
+
+
+#ifdef _MSC_VER
+#pragma warning (disable : 4731)
+//warning C4731: frame pointer register 'ebp' modified by inline a
