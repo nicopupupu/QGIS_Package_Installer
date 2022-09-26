@@ -1054,4 +1054,26 @@ namespace ttmath
 		let this is 001010000
 		after Rcl2(3, 1) there'll be 010000111 and Rcl2 returns 1
 	*/
-	
+	template<uint value_size>
+	uint UInt<value_size>::Rcl2(uint bits, uint c)
+	{
+	TTMATH_ASSERT( bits>0 && bits<TTMATH_BITS_PER_UINT )
+		
+	uint b = value_size;
+	uint * p1 = table;
+
+		#ifndef __GNUC__
+			__asm
+			{
+				push eax
+				push ebx
+				push ecx
+				push edx
+				push esi
+				push edi
+				push ebp
+
+				mov edi, [b]
+
+				mov ecx, 32
+				sub e
