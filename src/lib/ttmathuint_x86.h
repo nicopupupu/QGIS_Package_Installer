@@ -982,4 +982,34 @@ namespace ttmath
 	uint * p1 = table;
 
 		#ifndef __GNUC__
-			__as
+			__asm
+			{
+				push ebx
+				push ecx
+
+				mov ebx, [p1]
+				mov ecx, [c]
+				neg ecx
+				mov ecx, [b]
+
+			ttmath_loop:
+				rcr dword ptr [ebx+ecx*4-4], 1
+				
+				dec ecx
+			jnz ttmath_loop
+
+				adc ecx, ecx
+				mov [c], ecx
+
+				pop ecx
+				pop ebx
+			}
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy;
+
+		__asm__  __volatile__(
+
+			"negl %%eax						\n"   // CF=1 if eax!=0 , CF=0 if eax
