@@ -1037,4 +1037,21 @@ namespace ttmath
 
 #ifdef _MSC_VER
 #pragma warning (disable : 4731)
-//warning C4731: frame pointer register 'ebp' modified by inline a
+//warning C4731: frame pointer register 'ebp' modified by inline assembly code
+#endif
+	
+
+
+	/*!
+		this method moves all bits into the left hand side
+		return value <- this <- c
+
+		the lowest *bits* will be held the 'c' and
+		the state of one additional bit (on the left hand side)
+		will be returned
+
+		for example:
+		let this is 001010000
+		after Rcl2(3, 1) there'll be 010000111 and Rcl2 returns 1
+	*/
+	
