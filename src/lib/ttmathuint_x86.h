@@ -1076,4 +1076,20 @@ namespace ttmath
 				mov edi, [b]
 
 				mov ecx, 32
-				sub e
+				sub ecx, [bits]
+				mov edx, -1
+				shr edx, cl
+
+				mov ecx, [bits]
+				mov ebx, [p1]
+				mov eax, [c]
+
+				mov ebp, edx         // ebp = mask (modified ebp - don't read/write to variables)
+
+				xor edx, edx         // edx = 0
+				mov esi, edx
+				or eax, eax
+				cmovnz esi, ebp      // if(c) esi=mask else esi=0
+
+			ttmath_loop:
+				rol dword ptr [ebx
