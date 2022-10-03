@@ -1092,4 +1092,24 @@ namespace ttmath
 				cmovnz esi, ebp      // if(c) esi=mask else esi=0
 
 			ttmath_loop:
-				rol dword ptr [ebx
+				rol dword ptr [ebx+edx*4], cl
+				
+				mov eax, [ebx+edx*4]
+				and eax, ebp
+				xor [ebx+edx*4], eax // clearing bits
+				or [ebx+edx*4], esi  // saving old value
+				mov esi, eax
+
+				inc edx
+				dec edi
+			jnz ttmath_loop
+
+				pop ebp              // restoring ebp
+
+				and eax, 1
+				mov [c], eax
+
+				pop edi
+				pop esi
+				pop edx
+				pop ecx
