@@ -1113,3 +1113,21 @@ namespace ttmath
 				pop esi
 				pop edx
 				pop ecx
+				pop ebx
+				pop eax
+			}
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy, dummy2, dummy3;
+
+		__asm__  __volatile__(
+
+			"push %%ebp						\n"
+			
+			"movl %%ecx, %%esi				\n"
+			"movl $32, %%ecx				\n"
+			"subl %%esi, %%ecx				\n"    // ecx = 32 - bits
+			"movl $-1, %%edx				\n"    // edx = -1 (all bits set to one)
+			"shrl %%cl, %%edx				\n"    // shifting (0 -> edx -> cf)  
