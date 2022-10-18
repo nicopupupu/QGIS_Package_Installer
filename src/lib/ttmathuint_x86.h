@@ -1130,4 +1130,16 @@ namespace ttmath
 			"movl $32, %%ecx				\n"
 			"subl %%esi, %%ecx				\n"    // ecx = 32 - bits
 			"movl $-1, %%edx				\n"    // edx = -1 (all bits set to one)
-			"shrl %%cl, %%edx				\n"    // shifting (0 -> edx -> cf)  
+			"shrl %%cl, %%edx				\n"    // shifting (0 -> edx -> cf)  (cl times)
+			"movl %%edx, %%ebp				\n"    // ebp = edx = mask
+			"movl %%esi, %%ecx				\n"
+
+			"xorl %%edx, %%edx				\n"
+			"movl %%edx, %%esi				\n"
+			"orl %%eax, %%eax				\n"
+			"cmovnz %%ebp, %%esi			\n"    // if(c) esi=mask else esi=0
+
+		"1:									\n"
+			"roll %%cl, (%%ebx,%%edx,4)		\n"
+
+			"movl (%%ebx,%
