@@ -1142,4 +1142,19 @@ namespace ttmath
 		"1:									\n"
 			"roll %%cl, (%%ebx,%%edx,4)		\n"
 
-			"movl (%%ebx,%
+			"movl (%%ebx,%%edx,4), %%eax	\n"
+			"andl %%ebp, %%eax				\n"
+			"xorl %%eax, (%%ebx,%%edx,4)	\n"
+			"orl  %%esi, (%%ebx,%%edx,4)	\n"
+			"movl %%eax, %%esi				\n"
+			
+			"incl %%edx						\n"
+			"decl %%edi						\n"
+		"jnz 1b								\n"
+			
+			"and $1, %%eax					\n"
+
+			"pop %%ebp						\n"
+
+			: "=a" (c), "=D" (dummy), "=S" (dummy2), "=d" (dummy3)
+			: "0" (c),  "1" (b), "b" (p1),
