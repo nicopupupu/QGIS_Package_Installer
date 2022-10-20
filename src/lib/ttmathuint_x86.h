@@ -1180,4 +1180,25 @@ namespace ttmath
 
 		for example:
 		let this is 000000010
-		after Rcr2(2, 1) there'll be 110000
+		after Rcr2(2, 1) there'll be 110000000 and Rcr2 returns 1
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::Rcr2(uint bits, uint c)
+	{
+	TTMATH_ASSERT( bits>0 && bits<TTMATH_BITS_PER_UINT )
+
+	uint b = value_size;
+	uint * p1 = table;
+
+		#ifndef __GNUC__
+			__asm
+			{
+				push eax
+				push ebx
+				push ecx
+				push edx
+				push esi
+				push edi
+				push ebp
+
+				
