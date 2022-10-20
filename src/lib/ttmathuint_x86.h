@@ -1157,4 +1157,27 @@ namespace ttmath
 			"pop %%ebp						\n"
 
 			: "=a" (c), "=D" (dummy), "=S" (dummy2), "=d" (dummy3)
-			: "0" (c),  "1" (b), "b" (p1),
+			: "0" (c),  "1" (b), "b" (p1), "c" (bits)
+			: "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::Rcl2", c)
+
+	return c;
+	}
+
+
+
+
+	/*!
+		this method moves all bits into the right hand side
+		C -> this -> return value
+
+		the highest *bits* will be held the 'c' and
+		the state of one additional bit (on the right hand side)
+		will be returned
+
+		for example:
+		let this is 000000010
+		after Rcr2(2, 1) there'll be 110000
