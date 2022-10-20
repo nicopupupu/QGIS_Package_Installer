@@ -1201,4 +1201,20 @@ namespace ttmath
 				push edi
 				push ebp
 
-				
+				mov edi, [b]
+
+				mov ecx, 32
+				sub ecx, [bits]
+				mov edx, -1
+				shl edx, cl
+
+				mov ecx, [bits]
+				mov ebx, [p1]
+				mov eax, [c]
+
+				mov ebp, edx         // ebp = mask (modified ebp - don't read/write to variables)
+
+				xor edx, edx         // edx = 0
+				mov esi, edx
+				add edx, edi
+				dec edx              // edx is pointing at the end
