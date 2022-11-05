@@ -1217,4 +1217,19 @@ namespace ttmath
 				xor edx, edx         // edx = 0
 				mov esi, edx
 				add edx, edi
-				dec edx              // edx is pointing at the end
+				dec edx              // edx is pointing at the end of the table (on last word)
+				or eax, eax
+				cmovnz esi, ebp      // if(c) esi=mask else esi=0
+
+			ttmath_loop:
+				ror dword ptr [ebx+edx*4], cl
+				
+				mov eax, [ebx+edx*4]
+				and eax, ebp 
+				xor [ebx+edx*4], eax // clearing bits
+				or [ebx+edx*4], esi  // saving old value
+				mov esi, eax
+
+				dec edx
+				dec edi
+			jnz tt
