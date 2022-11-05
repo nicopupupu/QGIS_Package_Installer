@@ -1232,4 +1232,30 @@ namespace ttmath
 
 				dec edx
 				dec edi
-			jnz tt
+			jnz ttmath_loop
+
+				pop ebp              // restoring ebp
+
+				rol eax, 1           // 31bit will be first
+				and eax, 1  
+				mov [c], eax
+
+				pop edi
+				pop esi
+				pop edx
+				pop ecx
+				pop ebx
+				pop eax
+			}
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy, dummy2, dummy3;
+
+			__asm__  __volatile__(
+
+			"push %%ebp						\n"
+			
+			"movl %%ecx, %%esi				\n"
+			
