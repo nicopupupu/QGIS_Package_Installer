@@ -1258,4 +1258,13 @@ namespace ttmath
 			"push %%ebp						\n"
 			
 			"movl %%ecx, %%esi				\n"
-			
+			"movl $32, %%ecx				\n"
+			"subl %%esi, %%ecx				\n"    // ecx = 32 - bits
+			"movl $-1, %%edx				\n"    // edx = -1 (all bits set to one)
+			"shll %%cl, %%edx				\n"    // shifting (cf <- edx <- 0)  (cl times)
+			"movl %%edx, %%ebp				\n"    // ebp = edx = mask
+			"movl %%esi, %%ecx				\n"
+
+			"xorl %%edx, %%edx				\n"
+			"movl %%edx, %%esi				\n"
+			"addl %%edi, %%edx				\n
