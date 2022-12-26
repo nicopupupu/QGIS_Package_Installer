@@ -1267,4 +1267,15 @@ namespace ttmath
 
 			"xorl %%edx, %%edx				\n"
 			"movl %%edx, %%esi				\n"
-			"addl %%edi, %%edx				\n
+			"addl %%edi, %%edx				\n"
+			"decl %%edx						\n"    // edx is pointing at the end of the table (on last word)
+			"orl %%eax, %%eax				\n"
+			"cmovnz %%ebp, %%esi			\n"    // if(c) esi=mask else esi=0
+
+		"1:									\n"
+			"rorl %%cl, (%%ebx,%%edx,4)		\n"
+
+			"movl (%%ebx,%%edx,4), %%eax	\n"
+			"andl %%ebp, %%eax				\n"
+			"xorl %%eax, (%%ebx,%%edx,4)	\n"
+			"orl  %%esi, (%%ebx,%
