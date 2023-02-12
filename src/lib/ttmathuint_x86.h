@@ -1318,3 +1318,29 @@ namespace ttmath
 
 		#ifndef __GNUC__
 			__asm
+			{
+				push eax
+				push edx
+
+				mov edx,-1
+				bsr eax,[x]
+				cmovz eax,edx
+				mov [result], eax
+
+				pop edx
+				pop eax
+			}
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy;
+
+				__asm__ (
+
+				"movl $-1, %1          \n"
+				"bsrl %2, %0           \n"
+				"cmovz %1, %0          \n"
+
+				: "=r" (result), "=&r" (dummy)
+				: "r" (
