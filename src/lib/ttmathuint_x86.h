@@ -1423,3 +1423,32 @@ namespace ttmath
 			push ebx
 			push eax
 
+			mov eax, [v]
+			mov ebx, [bit]
+			bts eax, ebx
+			mov [v], eax
+
+			setc bl
+			movzx ebx, bl
+			mov [old_bit], ebx
+
+			pop eax
+			pop ebx
+			}
+		#endif
+
+
+		#ifdef __GNUC__
+			__asm__ (
+
+			"btsl %%ebx, %%eax		\n"
+			"setc %%bl				\n"
+			"movzx %%bl, %%ebx		\n"
+			
+			: "=a" (v), "=b" (old_bit)
+			: "0" (v),  "1" (bit)
+			: "cc" );
+
+		#endif
+
+		v
