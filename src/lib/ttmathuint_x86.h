@@ -1371,4 +1371,34 @@ namespace ttmath
 				mov edx,-1
 				bsf eax,[x]
 				cmovz eax,edx
-				mov [
+				mov [result], eax
+
+				pop edx
+				pop eax
+			}
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy;
+
+				__asm__ (
+
+				"movl $-1, %1          \n"
+				"bsfl %2, %0           \n"
+				"cmovz %1, %0          \n"
+
+				: "=r" (result), "=&r" (dummy)
+				: "r" (x)
+				: "cc" );
+
+		#endif
+
+	return result;
+	}
+
+
+
+	/*!
+		this method sets a special bit in the 'value'
+		and returns the last state of the bit (zero o
