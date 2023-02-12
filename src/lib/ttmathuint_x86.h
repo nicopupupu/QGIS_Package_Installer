@@ -1296,4 +1296,25 @@ namespace ttmath
 
 		#endif
 
-		TTMATH_LOGC("UInt::Rcr2", c
+		TTMATH_LOGC("UInt::Rcr2", c)
+
+	return c;
+	}
+
+
+#ifdef _MSC_VER
+#pragma warning (default : 4731)
+#endif
+
+
+	/*
+		this method returns the number of the highest set bit in one 32-bit word
+		if the 'x' is zero this method returns '-1'
+	*/
+	template<uint value_size>
+	sint UInt<value_size>::FindLeadingBitInWord(uint x)
+	{
+	sint result;
+
+		#ifndef __GNUC__
+			__asm
