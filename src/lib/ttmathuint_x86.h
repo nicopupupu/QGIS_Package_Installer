@@ -1401,4 +1401,25 @@ namespace ttmath
 
 	/*!
 		this method sets a special bit in the 'value'
-		and returns the last state of the bit (zero o
+		and returns the last state of the bit (zero or one)
+
+		bit is from <0,31>
+		e.g.
+		 uint x = 100;
+		 uint bit = SetBitInWord(x, 3);
+		 now: x = 108 and bit = 0
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::SetBitInWord(uint & value, uint bit)
+	{
+		TTMATH_ASSERT( bit < TTMATH_BITS_PER_UINT )
+
+		uint old_bit;
+		uint v = value;
+
+		#ifndef __GNUC__
+			__asm
+			{
+			push ebx
+			push eax
+
