@@ -1278,4 +1278,22 @@ namespace ttmath
 			"movl (%%ebx,%%edx,4), %%eax	\n"
 			"andl %%ebp, %%eax				\n"
 			"xorl %%eax, (%%ebx,%%edx,4)	\n"
-			"orl  %%esi, (%%ebx,%
+			"orl  %%esi, (%%ebx,%%edx,4)	\n"
+			"movl %%eax, %%esi				\n"
+			
+			"decl %%edx						\n"
+			"decl %%edi						\n"
+		"jnz 1b								\n"
+			
+			"roll $1, %%eax					\n"
+			"andl $1, %%eax					\n"
+
+			"pop %%ebp						\n"
+
+			: "=a" (c), "=D" (dummy), "=S" (dummy2), "=d" (dummy3)
+			: "0" (c),  "1" (b), "b" (p1), "c" (bits)
+			: "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::Rcr2", c
