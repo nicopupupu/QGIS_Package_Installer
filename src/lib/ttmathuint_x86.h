@@ -1468,4 +1468,20 @@ namespace ttmath
 		this method is used in the second version of the multiplication algorithms
 	*/
 	template<uint value_size>
-	void UInt<value_size>::MulTwoWords(uint a,
+	void UInt<value_size>::MulTwoWords(uint a, uint b, uint * result_high, uint * result_low)
+	{
+	/*
+		we must use these temporary variables in order to inform the compilator
+		that value pointed with result1 and result2 has changed
+
+		this has no effect in visual studio but it's useful when
+		using gcc and options like -Ox
+	*/
+	uint result1_;
+	uint result2_;
+
+		#ifndef __GNUC__
+
+			__asm
+			{
+			push eax
