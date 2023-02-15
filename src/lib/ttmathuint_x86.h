@@ -1451,4 +1451,21 @@ namespace ttmath
 
 		#endif
 
-		v
+		value = v;
+
+	return old_bit;
+	}
+
+
+
+
+	/*!
+		multiplication: result_high:result_low = a * b
+		result_high - higher word of the result
+		result_low  - lower word of the result
+	
+		this methos never returns a carry
+		this method is used in the second version of the multiplication algorithms
+	*/
+	template<uint value_size>
+	void UInt<value_size>::MulTwoWords(uint a,
