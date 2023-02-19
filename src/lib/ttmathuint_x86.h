@@ -1523,4 +1523,23 @@ namespace ttmath
 
 	/*!
 	 *
-	 
+	 * Division
+	 *
+	 *
+	*/
+	
+
+
+
+	/*!
+		this method calculates 64bits word a:b / 32bits c (a higher, b lower word)
+		r = a:b / c and rest - remainder
+
+		*
+		* WARNING:
+		* if r (one word) is too small for the result or c is equal zero
+		* there'll be a hardware interruption (0)
+		* and probably the end of your program
+		*
+	*/
+	template
