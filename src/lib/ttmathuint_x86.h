@@ -1542,4 +1542,22 @@ namespace ttmath
 		* and probably the end of your program
 		*
 	*/
-	template
+	template<uint value_size>
+	void UInt<value_size>::DivTwoWords(uint a, uint b, uint c, uint * r, uint * rest)
+	{
+		uint r_;
+		uint rest_;
+		/*
+			these variables have similar meaning like those in
+			the multiplication algorithm MulTwoWords
+		*/
+
+		TTMATH_ASSERT( c != 0 )
+
+		#ifndef __GNUC__
+			__asm
+			{
+				push eax
+				push edx
+
+				mov edx, [
