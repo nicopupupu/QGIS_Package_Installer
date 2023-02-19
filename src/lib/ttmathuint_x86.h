@@ -1560,4 +1560,41 @@ namespace ttmath
 				push eax
 				push edx
 
-				mov edx, [
+				mov edx, [a]
+				mov eax, [b]
+				div dword ptr [c]
+
+				mov [r_], eax
+				mov [rest_], edx
+
+				pop edx
+				pop eax
+			}
+		#endif
+
+
+		#ifdef __GNUC__
+		
+			__asm__ (
+
+			"divl %%ecx				\n"
+
+			: "=a" (r_), "=d" (rest_)
+			: "0" (b),   "1" (a), "c" (c)
+			: "cc" );
+
+		#endif
+
+
+		*r = r_;
+		*rest = rest_;
+
+	}
+
+
+
+} //namespace
+
+
+
+#endif //ifd
