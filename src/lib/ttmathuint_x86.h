@@ -1485,3 +1485,42 @@ namespace ttmath
 			__asm
 			{
 			push eax
+			push edx
+
+			mov eax, [a]
+			mul dword ptr [b]
+
+			mov [result2_], edx
+			mov [result1_], eax
+
+			pop edx
+			pop eax
+			}
+
+		#endif
+
+
+		#ifdef __GNUC__
+
+		__asm__ (
+		
+			"mull %%edx			\n"
+
+			: "=a" (result1_), "=d" (result2_)
+			: "0" (a),         "1" (b)
+			: "cc" );
+
+		#endif
+
+
+		*result_low  = result1_;
+		*result_high = result2_;
+	}
+
+
+
+
+
+	/*!
+	 *
+	 
