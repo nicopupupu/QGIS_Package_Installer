@@ -1597,4 +1597,6 @@ namespace ttmath
 
 
 
-#endif //ifd
+#endif //ifdef TTMATH_PLATFORM32
+#endif //ifndef TTMATH_NOASM
+#endif
