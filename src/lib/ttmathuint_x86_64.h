@@ -297,3 +297,346 @@ namespace ttmath
 		TTMATH_ASSERT( index < value_size - 1 )
 
 		#ifndef __GNUC__
+			c = ttmath_addindexed2_x64(p1,b,index,x1,x2);
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy, dummy2;
+
+			__asm__ __volatile__(
+			
+				"subq %%rdx, %%rcx 				\n"
+				
+				"addq %%rsi, (%%rbx,%%rdx,8) 	\n"
+				"incq %%rdx						\n"
+				"decq %%rcx						\n"
+
+			"1:									\n"
+				"adcq %%rax, (%%rbx,%%rdx,8)	\n"
+			"jnc 2f								\n"
+
+				"mov $0, %%rax					\n"
+				"incq %%rdx						\n"
+				"decq %%rcx						\n"
+			"jnz 1b								\n"
+
+			"2:									\n"
+				"setc %%al						\n"
+				"movzx %%al, %%rax				\n"
+
+				: "=a" (c), "=c" (dummy), "=d" (dummy2)
+				: "0" (x2), "1" (b),      "2" (index), "b" (p1), "S" (x1)
+				: "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::AddTwoInts", c)
+
+	return c;
+	}
+
+
+
+	/*!
+		this static method addes one vector to the other
+		'ss1' is larger in size or equal to 'ss2'
+
+		ss1 points to the first (larger) vector
+		ss2 points to the second vector
+		ss1_size - size of the ss1 (and size of the result too)
+		ss2_size - size of the ss2
+		result - is the result vector (which has size the same as ss1: ss1_size)
+
+		Example:  ss1_size is 5, ss2_size is 3
+		ss1:      ss2:   result (output):
+		  5        1         5+1
+		  4        3         4+3
+		  2        7         2+7
+		  6                  6
+		  9                  9
+	  of course the carry is propagated and will be returned from the last item
+	  (this method is used by the Karatsuba multiplication algorithm)
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::AddVector(const uint * ss1, const uint * ss2, uint ss1_size, uint ss2_size, uint * result)
+	{
+		TTMATH_ASSERT( ss1_size >= ss2_size )
+
+		uint c;
+
+		#ifndef __GNUC__
+			 c = ttmath_addvector_x64(ss1, ss2, ss1_size, ss2_size, result);
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy1, dummy2, dummy3;	
+		uint rest = ss1_size - ss2_size;
+			
+			//	this part should be compiled with gcc
+		
+			__asm__ __volatile__(
+				"mov %%rdx, %%r8					\n"
+				"xor %%rdx, %%rdx					\n"   // rdx = 0, cf = 0
+			"1:										\n"
+				"mov (%%rsi,%%rdx,8), %%rax			\n"
+				"adc (%%rbx,%%rdx,8), %%rax			\n"
+				"mov %%rax, (%%rdi,%%rdx,8)			\n"
+
+				"inc %%rdx							\n"
+				"dec %%rcx							\n"
+			"jnz 1b									\n"
+
+				"adc %%rcx, %%rcx					\n"   // rcx has the cf state
+
+				"or %%r8, %%r8						\n"
+				"jz 3f								\n"
+				
+				"xor %%rbx, %%rbx					\n"   // ebx = 0
+				"neg %%rcx							\n"   // setting cf from rcx
+				"mov %%r8, %%rcx					\n"   // rcx=rest and is != 0
+			"2:										\n"
+				"mov (%%rsi, %%rdx, 8), %%rax		\n"
+				"adc %%rbx, %%rax 					\n"
+				"mov %%rax, (%%rdi, %%rdx, 8)		\n"
+
+				"inc %%rdx							\n"
+				"dec %%rcx							\n"
+			"jnz 2b									\n"
+
+				"adc %%rcx, %%rcx					\n"
+			"3:										\n"
+
+				: "=a" (dummy1), "=b" (dummy2), "=c" (c),       "=d" (dummy3)
+				:                "1" (ss2),     "2" (ss2_size), "3" (rest),   "S" (ss1),  "D" (result)
+				: "%r8", "cc", "memory" );
+
+		#endif
+
+		TTMATH_VECTOR_LOGC("UInt::AddVector", c, result, ss1_size)
+
+	return c;
+	}
+
+
+
+	/*!
+		this method's subtracting ss2 from the 'this' and subtracting
+		carry if it has been defined
+		(this = this - ss2 - c)
+
+		***this method is created only on a 64bit platform***
+
+		c must be zero or one (might be a bigger value than 1)
+		function returns carry (1) (if it was)
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::Sub(const UInt<value_size> & ss2, uint c)
+	{
+	uint b = value_size;
+	uint * p1 = table;
+	const uint * p2 = ss2.table;
+	
+		// we don't have to use TTMATH_REFERENCE_ASSERT here
+		// this algorithm doesn't require it
+
+		#ifndef __GNUC__
+			c = ttmath_sbb_x64(p1,p2,b,c);
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy, dummy2;
+
+			__asm__  __volatile__(
+	
+				"xorq %%rdx, %%rdx				\n"
+				"negq %%rax						\n"     // CF=1 if rax!=0 , CF=0 if rax==0
+
+			"1:									\n"
+				"movq (%%rsi,%%rdx,8), %%rax	\n"
+				"sbbq %%rax, (%%rbx,%%rdx,8)	\n"
+			
+				"incq %%rdx						\n"
+				"decq %%rcx						\n"
+			"jnz 1b								\n"
+
+				"adcq %%rcx, %%rcx				\n"
+
+				: "=c" (c), "=a" (dummy), "=d" (dummy2)
+				: "0" (b),  "1" (c), "b" (p1), "S" (p2)
+				: "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::Sub", c)
+
+	return c;
+	}
+
+
+
+	/*!
+		this method subtracts one word (at a specific position)
+		and returns a carry (if it was)
+
+		***this method is created only on a 64bit platform***
+
+		if we've got (value_size=3):
+			table[0] = 10;
+			table[1] = 30;
+			table[2] = 5;	
+		and we call:
+			SubInt(2,1)
+		then it'll be:
+			table[0] = 10;
+			table[1] = 30 - 2;
+			table[2] = 5;
+
+		of course if there was a carry from table[2] it would be returned
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::SubInt(uint value, uint index)
+	{
+	uint b = value_size;
+	uint * p1 = table;
+	uint c;
+
+		TTMATH_ASSERT( index < value_size )
+
+		#ifndef __GNUC__
+			c = ttmath_subindexed_x64(p1,b,index,value);
+		#endif
+
+
+		#ifdef __GNUC__
+			uint dummy, dummy2;
+
+			__asm__ __volatile__(
+			
+				"subq %%rdx, %%rcx 				\n"
+
+			"1:									\n"
+				"subq %%rax, (%%rbx,%%rdx,8)	\n"
+			"jnc 2f								\n"
+				
+				"movq $1, %%rax					\n"
+				"incq %%rdx						\n"
+				"decq %%rcx						\n"
+			"jnz 1b								\n"
+
+			"2:									\n"
+				"setc %%al						\n"
+				"movzx %%al, %%rdx				\n"
+
+				: "=d" (c),    "=a" (dummy), "=c" (dummy2)
+				: "0" (index), "1" (value),  "2" (b), "b" (p1)
+				: "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::SubInt", c)
+
+	return c;
+	}
+
+
+	/*!
+		this static method subtractes one vector from the other
+		'ss1' is larger in size or equal to 'ss2'
+
+		ss1 points to the first (larger) vector
+		ss2 points to the second vector
+		ss1_size - size of the ss1 (and size of the result too)
+		ss2_size - size of the ss2
+		result - is the result vector (which has size the same as ss1: ss1_size)
+
+		Example:  ss1_size is 5, ss2_size is 3
+		ss1:      ss2:   result (output):
+		  5        1         5-1
+		  4        3         4-3
+		  2        7         2-7
+		  6                  6-1  (the borrow from previous item)
+		  9                  9
+		               return (carry): 0
+	  of course the carry (borrow) is propagated and will be returned from the last item
+	  (this method is used by the Karatsuba multiplication algorithm)
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::SubVector(const uint * ss1, const uint * ss2, uint ss1_size, uint ss2_size, uint * result)
+	{
+		TTMATH_ASSERT( ss1_size >= ss2_size )
+
+		uint c;
+
+		#ifndef __GNUC__
+			c = ttmath_subvector_x64(ss1, ss2, ss1_size, ss2_size, result);
+		#endif
+
+
+		#ifdef __GNUC__
+		
+		//	the asm code is nearly the same as in AddVector
+		//	only two instructions 'adc' are changed to 'sbb'
+		
+		uint dummy1, dummy2, dummy3;
+		uint rest = ss1_size - ss2_size;
+
+			__asm__ __volatile__(
+				"mov %%rdx, %%r8					\n"
+				"xor %%rdx, %%rdx					\n"   // rdx = 0, cf = 0
+			"1:										\n"
+				"mov (%%rsi,%%rdx,8), %%rax			\n"
+				"sbb (%%rbx,%%rdx,8), %%rax			\n"
+				"mov %%rax, (%%rdi,%%rdx,8)			\n"
+
+				"inc %%rdx							\n"
+				"dec %%rcx							\n"
+			"jnz 1b									\n"
+
+				"adc %%rcx, %%rcx					\n"   // rcx has the cf state
+
+				"or %%r8, %%r8						\n"
+				"jz 3f								\n"
+				
+				"xor %%rbx, %%rbx					\n"   // ebx = 0
+				"neg %%rcx							\n"   // setting cf from rcx
+				"mov %%r8, %%rcx					\n"   // rcx=rest and is != 0
+			"2:										\n"
+				"mov (%%rsi, %%rdx, 8), %%rax		\n"
+				"sbb %%rbx, %%rax 					\n"
+				"mov %%rax, (%%rdi, %%rdx, 8)		\n"
+
+				"inc %%rdx							\n"
+				"dec %%rcx							\n"
+			"jnz 2b									\n"
+
+				"adc %%rcx, %%rcx					\n"
+			"3:										\n"
+
+				: "=a" (dummy1), "=b" (dummy2), "=c" (c),       "=d" (dummy3)
+				:                "1" (ss2),     "2" (ss2_size), "3" (rest),   "S" (ss1),  "D" (result)
+				: "%r8", "cc", "memory" );
+
+		#endif
+
+		TTMATH_VECTOR_LOGC("UInt::SubVector", c, result, ss1_size)
+
+	return c;
+	}
+
+
+	/*!
+		this method moves all bits into the left hand side
+		return value <- this <- c
+
+		the lowest *bit* will be held the 'c' and
+		the state of one additional bit (on the left hand side)
+		will be returned
+
+		for example:
+		let this is 001010000
+		after Rcl2_one(1) there'll be 010100001 and Rcl2_one returns 0
+	
+		***this method is created only on a 64bit platform***
