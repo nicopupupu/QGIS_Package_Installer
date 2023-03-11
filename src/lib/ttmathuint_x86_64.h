@@ -998,3 +998,149 @@ namespace ttmath
 		#ifndef __GNUC__
 			old_bit = _bittestandset64((__int64*)&value,bit) != 0;
 		#endif
+
+
+		#ifdef __GNUC__
+
+			__asm__ (
+
+			"btsq %%rbx, %%rax		\n"
+			"setc %%bl				\n"
+			"movzx %%bl, %%rbx		\n"
+			
+			: "=a" (v), "=b" (old_bit)
+			: "0" (v),  "1" (bit)
+			: "cc" );
+
+		#endif
+
+		value = v;
+
+	return old_bit;
+	}
+
+
+	/*!
+	 *
+	 * Multiplication
+	 *
+	 *
+	*/
+
+
+	/*!
+		multiplication: result_high:result_low = a * b
+		result_high - higher word of the result
+		result_low  - lower word of the result
+	
+		this methos never returns a carry
+		this method is used in the second version of the multiplication algorithms
+
+		***this method is created only on a 64bit platform***
+	*/
+	template<uint value_size>
+	void UInt<value_size>::MulTwoWords(uint a, uint b, uint * result_high, uint * result_low)
+	{
+	/*
+		we must use these temporary variables in order to inform the compilator
+		that value pointed with result1 and result2 has changed
+
+		this has no effect in visual studio but it's usefull when
+		using gcc and options like -O
+	*/
+	uint result1_;
+	uint result2_;
+
+
+		#ifndef __GNUC__
+			result1_ = _umul128(a,b,&result2_);
+		#endif
+
+
+		#ifdef __GNUC__
+
+		__asm__ (
+		
+			"mulq %%rdx			\n"
+
+			: "=a" (result1_), "=d" (result2_)
+			: "0" (a),         "1" (b)
+			: "cc" );
+
+		#endif
+
+
+		*result_low  = result1_;
+		*result_high = result2_;
+	}
+
+
+
+
+	/*!
+	 *
+	 * Division
+	 *
+	 *
+	*/
+	
+
+	/*!
+		this method calculates 64bits word a:b / 32bits c (a higher, b lower word)
+		r = a:b / c and rest - remainder
+		
+		***this method is created only on a 64bit platform***
+
+		*
+		* WARNING:
+		* if r (one word) is too small for the result or c is equal zero
+		* there'll be a hardware interruption (0)
+		* and probably the end of your program
+		*
+	*/
+	template<uint value_size>
+	void UInt<value_size>::DivTwoWords(uint a,uint b, uint c, uint * r, uint * rest)
+	{
+		uint r_;
+		uint rest_;
+		/*
+			these variables have similar meaning like those in
+			the multiplication algorithm MulTwoWords
+		*/
+
+		TTMATH_ASSERT( c != 0 )
+
+
+		#ifndef __GNUC__
+
+			ttmath_div_x64(&a,&b,c);
+			r_    = a;
+			rest_ = b;
+			
+		#endif
+
+
+		#ifdef __GNUC__
+		
+			__asm__ (
+
+			"divq %%rcx				\n"
+
+			: "=a" (r_), "=d" (rest_)
+			: "d" (a), "a" (b), "c" (c)
+			: "cc" );
+
+		#endif
+
+
+		*r = r_;
+		*rest = rest_;
+	}
+
+} //namespace
+
+
+#endif //ifdef TTMATH_PLATFORM64
+#endif //ifndef TTMATH_NOASM
+#endif
+
