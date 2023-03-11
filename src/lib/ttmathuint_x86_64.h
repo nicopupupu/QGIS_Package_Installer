@@ -640,3 +640,361 @@ namespace ttmath
 		after Rcl2_one(1) there'll be 010100001 and Rcl2_one returns 0
 	
 		***this method is created only on a 64bit platform***
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::Rcl2_one(uint c)
+	{
+	sint b = value_size;
+	uint * p1 = table;
+
+
+		#ifndef __GNUC__
+			c = ttmath_rcl_x64(p1,b,c);
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy, dummy2;
+
+		__asm__  __volatile__(
+		
+			"xorq %%rdx, %%rdx			\n"   // rdx=0
+			"negq %%rax					\n"   // CF=1 if rax!=0 , CF=0 if rax==0
+
+		"1:								\n"
+			"rclq $1, (%%rbx, %%rdx, 8)	\n"
+
+			"incq %%rdx					\n"
+			"decq %%rcx					\n"
+		"jnz 1b							\n"
+
+			"adcq %%rcx, %%rcx			\n"
+
+			: "=c" (c), "=a" (dummy), "=d" (dummy2)
+			: "0" (b),  "1" (c), "b" (p1)
+			: "cc", "memory" );
+	
+		#endif
+
+		TTMATH_LOGC("UInt::Rcl2_one", c)
+
+	return c;
+	}
+
+
+	/*!
+		this method moves all bits into the right hand side
+		c -> this -> return value
+
+		the highest *bit* will be held the 'c' and
+		the state of one additional bit (on the right hand side)
+		will be returned
+
+		for example:
+		let this is 000000010
+		after Rcr2_one(1) there'll be 100000001 and Rcr2_one returns 0
+
+		***this method is created only on a 64bit platform***
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::Rcr2_one(uint c)
+	{
+	sint b = value_size;
+	uint * p1 = table;
+	
+
+		#ifndef __GNUC__
+			c = ttmath_rcr_x64(p1,b,c);
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy;
+
+		__asm__  __volatile__(
+
+			"negq %%rax						\n"   // CF=1 if rax!=0 , CF=0 if rax==0
+
+		"1:									\n"
+			"rcrq $1, -8(%%rbx, %%rcx, 8)	\n"
+
+			"decq %%rcx						\n"
+		"jnz 1b								\n"
+
+			"adcq %%rcx, %%rcx				\n"
+
+			: "=c" (c), "=a" (dummy)
+			: "0" (b),  "1" (c), "b" (p1)
+			: "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::Rcr2_one", c)
+
+	return c;
+	}
+
+
+
+	/*!
+		this method moves all bits into the left hand side
+		return value <- this <- c
+
+		the lowest *bits* will be held the 'c' and
+		the state of one additional bit (on the left hand side)
+		will be returned
+
+		for example:
+		let this is 001010000
+		after Rcl2(3, 1) there'll be 010000111 and Rcl2 returns 1
+	
+		***this method is created only on a 64bit platform***
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::Rcl2(uint bits, uint c)
+	{
+	TTMATH_ASSERT( bits>0 && bits<TTMATH_BITS_PER_UINT )
+
+	uint b = value_size;
+	uint * p1 = table;
+
+
+		#ifndef __GNUC__
+			c = ttmath_rcl2_x64(p1,b,bits,c);
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy, dummy2, dummy3;
+
+		__asm__  __volatile__(
+		
+			"movq %%rcx, %%rsi				\n"
+			"movq $64, %%rcx				\n"
+			"subq %%rsi, %%rcx				\n"
+			"movq $-1, %%rdx				\n"
+			"shrq %%cl, %%rdx				\n"
+			"movq %%rdx, %%r8 				\n"
+			"movq %%rsi, %%rcx				\n"
+
+			"xorq %%rdx, %%rdx				\n"
+			"movq %%rdx, %%rsi				\n"
+			"orq %%rax, %%rax				\n"
+			"cmovnz %%r8, %%rsi				\n"
+
+		"1:									\n"
+			"rolq %%cl, (%%rbx,%%rdx,8)		\n"
+
+			"movq (%%rbx,%%rdx,8), %%rax	\n"
+			"andq %%r8, %%rax				\n"
+			"xorq %%rax, (%%rbx,%%rdx,8)	\n"
+			"orq  %%rsi, (%%rbx,%%rdx,8)	\n"
+			"movq %%rax, %%rsi				\n"
+			
+			"incq %%rdx						\n"
+			"decq %%rdi						\n"
+		"jnz 1b								\n"
+			
+			"and $1, %%rax					\n"
+
+			: "=a" (c), "=D" (dummy), "=S" (dummy2), "=d" (dummy3)
+			: "0" (c),  "1" (b), "b" (p1), "c" (bits)
+			: "%r8", "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::Rcl2", c)
+
+	return c;
+	}
+
+
+	/*!
+		this method moves all bits into the right hand side
+		C -> this -> return value
+
+		the highest *bits* will be held the 'c' and
+		the state of one additional bit (on the right hand side)
+		will be returned
+
+		for example:
+		let this is 000000010
+		after Rcr2(2, 1) there'll be 110000000 and Rcr2 returns 1
+
+		***this method is created only on a 64bit platform***
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::Rcr2(uint bits, uint c)
+	{
+	TTMATH_ASSERT( bits>0 && bits<TTMATH_BITS_PER_UINT )
+
+	sint b = value_size;
+	uint * p1 = table;
+
+
+		#ifndef __GNUC__
+			c = ttmath_rcr2_x64(p1,b,bits,c);
+		#endif
+
+
+		#ifdef __GNUC__
+			uint dummy, dummy2, dummy3;
+
+			__asm__  __volatile__(
+
+			"movq %%rcx, %%rsi				\n"
+			"movq $64, %%rcx				\n"
+			"subq %%rsi, %%rcx				\n"
+			"movq $-1, %%rdx				\n"
+			"shlq %%cl, %%rdx				\n"
+			"movq %%rdx, %%R8				\n"
+			"movq %%rsi, %%rcx				\n"
+
+			"xorq %%rdx, %%rdx				\n"
+			"movq %%rdx, %%rsi				\n"
+			"addq %%rdi, %%rdx				\n"
+			"decq %%rdx						\n"
+			"orq %%rax, %%rax				\n"
+			"cmovnz %%R8, %%rsi				\n"
+
+		"1:									\n"
+			"rorq %%cl, (%%rbx,%%rdx,8)		\n"
+
+			"movq (%%rbx,%%rdx,8), %%rax	\n"
+			"andq %%R8, %%rax				\n"
+			"xorq %%rax, (%%rbx,%%rdx,8)	\n"
+			"orq  %%rsi, (%%rbx,%%rdx,8)	\n"
+			"movq %%rax, %%rsi				\n"
+			
+			"decq %%rdx						\n"
+			"decq %%rdi						\n"
+		"jnz 1b								\n"
+			
+			"rolq $1, %%rax					\n"
+			"andq $1, %%rax					\n"
+
+			: "=a" (c), "=D" (dummy), "=S" (dummy2), "=d" (dummy3)
+			: "0" (c), "1" (b), "b" (p1), "c" (bits)
+			: "%r8", "cc", "memory" );
+
+		#endif
+
+		TTMATH_LOGC("UInt::Rcr2", c)
+
+	return c;
+	}
+
+
+	/*
+		this method returns the number of the highest set bit in one 64-bit word
+		if the 'x' is zero this method returns '-1'
+
+		***this method is created only on a 64bit platform***
+	*/
+	template<uint value_size>
+	sint UInt<value_size>::FindLeadingBitInWord(uint x)
+	{
+	sint result;
+
+	
+		#ifndef __GNUC__
+
+			unsigned long nIndex = 0;
+
+			if( _BitScanReverse64(&nIndex,x) == 0 )
+				result = -1;
+			else
+				result = nIndex;
+
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy;
+
+				__asm__ (
+
+				"movq $-1, %1          \n"
+				"bsrq %2, %0           \n"
+				"cmovz %1, %0          \n"
+
+				: "=r" (result), "=&r" (dummy)
+				: "r" (x)
+				: "cc" );
+
+		#endif
+
+
+	return result;
+	}
+
+
+	/*
+		this method returns the number of the highest set bit in one 64-bit word
+		if the 'x' is zero this method returns '-1'
+
+		***this method is created only on a 64bit platform***
+	*/
+	template<uint value_size>
+	sint UInt<value_size>::FindLowestBitInWord(uint x)
+	{
+	sint result;
+
+	
+		#ifndef __GNUC__
+
+			unsigned long nIndex = 0;
+
+			if( _BitScanForward64(&nIndex,x) == 0 )
+				result = -1;
+			else
+				result = nIndex;
+
+		#endif
+
+
+		#ifdef __GNUC__
+		uint dummy;
+
+				__asm__ (
+
+				"movq $-1, %1          \n"
+				"bsfq %2, %0           \n"
+				"cmovz %1, %0          \n"
+
+				: "=r" (result), "=&r" (dummy)
+				: "r" (x)
+				: "cc" );
+
+		#endif
+
+
+	return result;
+	}
+
+
+	/*!
+		this method sets a special bit in the 'value'
+		and returns the last state of the bit (zero or one)
+
+		***this method is created only on a 64bit platform***
+
+		bit is from <0,63>
+
+		e.g.
+		 uint x = 100;
+		 uint bit = SetBitInWord(x, 3);
+		 now: x = 108 and bit = 0
+	*/
+	template<uint value_size>
+	uint UInt<value_size>::SetBitInWord(uint & value, uint bit)
+	{
+		TTMATH_ASSERT( bit < TTMATH_BITS_PER_UINT )
+		
+		uint old_bit;
+		uint v = value;
+
+
+		#ifndef __GNUC__
+			old_bit = _bittestandset64((__int64*)&value,bit) != 0;
+		#endif
