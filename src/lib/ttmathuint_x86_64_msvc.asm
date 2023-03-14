@@ -59,4 +59,24 @@ PUBLIC	ttmath_rcr2_x64
 PUBLIC	ttmath_div_x64
 
 ;
-; M
+; Microsoft x86_64 convention: http://msdn.microsoft.com/en-us/library/9b372w95.aspx
+;
+;	"rax, rcx, rdx, r8-r11 are volatile."
+;	"rbx, rbp, rdi, rsi, r12-r15 are nonvolatile."
+;
+
+
+.CODE
+
+
+        ALIGN       8
+
+;----------------------------------------
+
+ttmath_adc_x64				PROC
+        ; rcx = p1
+        ; rdx = p2
+        ; r8 = nSize
+        ; r9 = nCarry
+
+    
