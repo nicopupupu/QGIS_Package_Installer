@@ -38,4 +38,25 @@
 ;
 ; compile with debug info:    ml64.exe /c /Zd /Zi ttmathuint_x86_64_msvc.asm
 ; compile without debug info: ml64.exe /c ttmathuint_x86_64_msvc.asm
-; this creates ttmathuint_x86_64_msvc.obj file which can be linked with your
+; this creates ttmathuint_x86_64_msvc.obj file which can be linked with your program
+;
+
+PUBLIC	ttmath_adc_x64
+PUBLIC	ttmath_addindexed_x64
+PUBLIC	ttmath_addindexed2_x64
+PUBLIC	ttmath_addvector_x64
+
+PUBLIC	ttmath_sbb_x64
+PUBLIC	ttmath_subindexed_x64
+PUBLIC	ttmath_subvector_x64
+
+PUBLIC	ttmath_rcl_x64
+PUBLIC	ttmath_rcr_x64
+
+PUBLIC	ttmath_rcl2_x64
+PUBLIC	ttmath_rcr2_x64
+
+PUBLIC	ttmath_div_x64
+
+;
+; M
