@@ -79,4 +79,27 @@ ttmath_adc_x64				PROC
         ; r8 = nSize
         ; r9 = nCarry
 
-    
+        xor		rax, rax
+        xor		r11, r11
+        sub		rax, r9		; sets CARRY if r9 != 0
+
+		ALIGN 16
+ loop1:
+		mov		rax,qword ptr [rdx + r11 * 8]
+		adc		qword ptr [rcx + r11 * 8], rax
+		lea		r11, [r11+1]
+		dec		r8
+		jnz		loop1
+
+		setc	al
+		movzx	rax, al
+
+		ret
+
+ttmath_adc_x64				ENDP
+
+;----------------------------------------
+
+        ALIGN       8
+
+;----------------------
