@@ -149,4 +149,18 @@ ttmath_addindexed2_x64	PROC
 
         ; rcx = p1 (pointer)
         ; rdx = b  (value size)
-   
+        ; r8 = nPos
+        ; r9 = nValue1
+        ; [esp+0x28] = nValue2
+
+		xor		rax, rax			; return value
+		mov		r11, rcx			; table
+		sub		rdx, r8				; rdx = remaining count of uints
+		mov		r10, [esp+028h]		; r10 = nValue2
+
+		add		qword ptr [r11 + r8 * 8], r9
+		lea		r8, [r8+1]
+		lea		rdx, [rdx-1]
+		adc		qword ptr [r11 + r8 * 8], r10
+		jc		next
+		r
