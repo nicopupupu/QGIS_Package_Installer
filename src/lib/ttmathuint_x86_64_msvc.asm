@@ -102,4 +102,28 @@ ttmath_adc_x64				ENDP
 
         ALIGN       8
 
-;----------------------
+;----------------------------------------
+
+ttmath_addindexed_x64	PROC
+
+        ; rcx = p1
+        ; rdx = nSize
+        ; r8 = nPos
+        ; r9 = nValue
+
+		xor		rax, rax			; rax = result
+		sub		rdx, r8				; rdx = remaining count of uints
+
+		add		qword ptr [rcx + r8 * 8], r9
+		jc		next1
+
+		ret
+
+next1:
+		mov		r9, 1
+
+		ALIGN 16
+loop1:
+		dec		rdx
+		jz		done_with_cy
+	
