@@ -126,4 +126,27 @@ next1:
 loop1:
 		dec		rdx
 		jz		done_with_cy
-	
+		lea		r8, [r8+1]
+		add		qword ptr [rcx + r8 * 8], r9
+		jc		loop1
+
+		ret
+
+done_with_cy:
+		lea		rax, [rax+1]		; rax = 1
+
+		ret
+
+ttmath_addindexed_x64	ENDP
+
+;----------------------------------------
+
+        ALIGN       8
+
+;----------------------------------------
+
+ttmath_addindexed2_x64	PROC
+
+        ; rcx = p1 (pointer)
+        ; rdx = b  (value size)
+   
