@@ -228,3 +228,27 @@ ttmath_addvector_x64				PROC
 		mov		rax, r8
 		
 		ret
+
+done:
+		mov		rax, r9
+		ret
+
+ttmath_addvector_x64				ENDP
+
+
+;----------------------------------------
+
+        ALIGN       8
+
+;----------------------------------------
+
+ttmath_sbb_x64				PROC
+
+        ; rcx = p1
+        ; rdx = p2
+        ; r8 = nCount
+        ; r9 = nCarry
+
+        xor		rax, rax
+        xor		r11, r11
+        sub		ra
