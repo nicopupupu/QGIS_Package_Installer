@@ -163,4 +163,31 @@ ttmath_addindexed2_x64	PROC
 		lea		rdx, [rdx-1]
 		adc		qword ptr [r11 + r8 * 8], r10
 		jc		next
-		r
+		ret
+
+		ALIGN 16
+loop1:
+		lea		r8, [r8+1]
+		add		qword ptr [r11 + r8 * 8], 1
+		jc		next
+		ret
+
+next:
+		dec		rdx					; does not modify CY too...
+		jnz		loop1
+		lea		rax, [rax+1]
+		ret
+
+ttmath_addindexed2_x64	ENDP
+
+
+
+;----------------------------------------
+
+        ALIGN       8
+
+;----------------------------------------
+
+
+ttmath_addvector_x64				PROC
+     
