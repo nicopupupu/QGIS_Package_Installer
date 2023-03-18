@@ -272,4 +272,28 @@ ttmath_sbb_x64				ENDP
 
         ALIGN       8
 
-;------------------------------
+;----------------------------------------
+
+ttmath_subindexed_x64	PROC
+        ; rcx = p1
+        ; rdx = nSize
+        ; r8 = nPos
+        ; r9 = nValue
+
+		sub		rdx, r8				; rdx = remaining count of uints
+
+		ALIGN 16
+loop1:
+		sub		qword ptr [rcx + r8 * 8], r9
+		jnc		done
+
+		lea		r8, [r8+1]
+		mov		r9, 1
+		dec		rdx
+		jnz		loop1
+
+		mov		rax, 1
+		ret
+
+done:
+		xor		rax,
