@@ -296,4 +296,23 @@ loop1:
 		ret
 
 done:
-		xor		rax,
+		xor		rax, rax
+		ret
+
+ttmath_subindexed_x64	ENDP
+
+
+
+;----------------------------------------
+
+        ALIGN       8
+
+;----------------------------------------
+
+;	the same asm code as in addvector_x64 only two instructions 'adc' changed to 'sbb'
+
+ttmath_subvector_x64				PROC
+        ; rcx = ss1
+        ; rdx = ss2
+        ; r8 = ss1_size
+        ; r9 = 
