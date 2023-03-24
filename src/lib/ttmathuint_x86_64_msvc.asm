@@ -360,4 +360,24 @@ ttmath_subvector_x64				ENDP
 
 
 
-;-------------------
+;----------------------------------------
+
+        ALIGN       8
+
+;----------------------------------------
+
+ttmath_rcl_x64	PROC
+        ; rcx = p1
+        ; rdx = b
+        ; r8 = nLowestBit
+
+		mov		r11, rcx			; table
+		xor		r10, r10
+		neg		r8					; CY set if r8 <> 0
+
+		ALIGN 16
+loop1:
+		rcl		qword ptr [r11 + r10 * 8], 1
+		lea		r10, [r10+1]
+		dec		rdx
+		jnz		loop
