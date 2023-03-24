@@ -315,4 +315,24 @@ ttmath_subvector_x64				PROC
         ; rcx = ss1
         ; rdx = ss2
         ; r8 = ss1_size
-        ; r9 = 
+        ; r9 = ss2_size
+        ; [esp+0x28] = result
+
+		mov		r10, [esp+028h]
+		sub		r8, r9
+        xor		r11, r11				; r11=0, cf=0
+
+		ALIGN 16
+ loop1:
+		mov		rax, qword ptr [rcx + r11 * 8]
+		sbb		rax, qword ptr [rdx + r11 * 8]
+		mov		qword ptr [r10 + r11 * 8], rax
+		inc		r11
+		dec		r9
+		jnz		loop1
+
+		adc		r9, r9					; r9 has the cf state
+
+		or		r8, r8
+		jz		done
+
