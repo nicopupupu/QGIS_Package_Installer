@@ -336,3 +336,28 @@ ttmath_subvector_x64				PROC
 		or		r8, r8
 		jz		done
 
+		neg		r9						; setting cf from r9
+		mov		r9, 0					; don't use xor here (cf is used)
+ loop2:
+		mov		rax, qword ptr [rcx + r11 * 8]
+		sbb		rax, r9
+		mov		qword ptr [r10 + r11 * 8], rax
+		inc		r11
+		dec		r8
+		jnz		loop2
+
+		adc		r8, r8
+		mov		rax, r8
+		
+		ret
+
+done:
+		mov		rax, r9
+		ret
+
+ttmath_subvector_x64				ENDP
+
+
+
+
+;-------------------
