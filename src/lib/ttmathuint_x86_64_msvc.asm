@@ -380,4 +380,25 @@ loop1:
 		rcl		qword ptr [r11 + r10 * 8], 1
 		lea		r10, [r10+1]
 		dec		rdx
-		jnz		loop
+		jnz		loop1
+
+		setc	al
+		movzx	rax, al
+
+        ret
+
+ttmath_rcl_x64	ENDP
+
+;----------------------------------------
+
+        ALIGN       8
+
+;----------------------------------------
+
+ttmath_rcr_x64	PROC
+        ; rcx = p1
+        ; rdx = nSize
+        ; r8 = nLowestBit
+
+		xor		r10, r10
+		neg		r8					; C
