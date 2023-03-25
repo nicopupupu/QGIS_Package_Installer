@@ -425,4 +425,22 @@ ttmath_rcr_x64	ENDP
 ttmath_div_x64	PROC
 
         ; rcx = &Hi
-        ;
+        ; rdx = &Lo
+        ; r8 = nDiv
+
+        mov		r11, rcx
+        mov		r10, rdx
+
+        mov		rdx, qword ptr [r11]
+        mov		rax, qword ptr [r10]
+        div		r8
+        mov		qword ptr [r10], rdx ; remainder
+        mov		qword ptr [r11], rax ; value
+
+        ret
+
+ttmath_div_x64	ENDP
+
+;----------------------------------------
+
+        ALIG
