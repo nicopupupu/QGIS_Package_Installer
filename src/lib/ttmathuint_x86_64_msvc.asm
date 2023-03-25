@@ -443,4 +443,27 @@ ttmath_div_x64	ENDP
 
 ;----------------------------------------
 
-        ALIG
+        ALIGN       8
+
+;----------------------------------------
+
+ttmath_rcl2_x64	PROC
+        ; rcx = p1
+        ; rdx = nSize
+        ; r8 = bits
+        ; r9 = c
+
+        push	rbx
+
+        mov		r10, rcx	; r10 = p1
+        xor		rax, rax
+
+        mov		rcx, 64
+        sub		rcx, r8
+
+        mov		r11, -1
+        shr		r11, cl		; r11 = mask
+
+		mov		rcx, r8		; rcx = count of bits
+
+		mov	
