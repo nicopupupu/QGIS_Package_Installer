@@ -401,4 +401,28 @@ ttmath_rcr_x64	PROC
         ; r8 = nLowestBit
 
 		xor		r10, r10
-		neg		r8					; C
+		neg		r8					; CY set if r8 <> 0
+
+		ALIGN 16
+loop1:
+		rcr		qword ptr -8[rcx + rdx * 8], 1
+		dec		rdx
+		jnz		loop1
+
+		setc	al
+		movzx	rax, al
+
+        ret
+
+ttmath_rcr_x64	ENDP
+
+;----------------------------------------
+
+        ALIGN       8
+
+;----------------------------------------
+
+ttmath_div_x64	PROC
+
+        ; rcx = &Hi
+        ;
