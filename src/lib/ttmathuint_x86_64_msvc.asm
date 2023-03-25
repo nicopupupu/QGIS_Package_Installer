@@ -466,4 +466,21 @@ ttmath_rcl2_x64	PROC
 
 		mov		rcx, r8		; rcx = count of bits
 
-		mov	
+		mov		rbx, rax	; rbx = old value = 0
+		or		r9, r9
+		cmovnz	rbx, r11	; if (c) then old value = mask
+
+        mov		r9, rax		; r9 = index (0..nSize-1)
+
+		ALIGN 16
+loop1:
+		rol		qword ptr [r10+r9*8], cl
+		mov		rax, qword ptr [r10+r9*8]
+		and		rax, r11
+		xor		qword ptr [r10+r9*8], rax
+		or		qword ptr [r10+r9*8], rbx
+		mov		rbx, rax
+
+		lea		r9, [r9+1]
+		dec		rdx
+
