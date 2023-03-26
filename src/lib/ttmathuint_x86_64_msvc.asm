@@ -484,3 +484,28 @@ loop1:
 		lea		r9, [r9+1]
 		dec		rdx
 
+		jnz		loop1
+
+		and		rax, 1
+		pop		rbx
+        ret
+
+ttmath_rcl2_x64	ENDP
+
+;----------------------------------------
+
+        ALIGN       8
+
+;----------------------------------------
+
+ttmath_rcr2_x64	PROC
+        ; rcx = p1
+        ; rdx = nSize
+        ; r8 = bits
+        ; r9 = c
+
+        push	rbx
+        mov		r10, rcx	; r10 = p1
+        xor		rax, rax
+
+       
