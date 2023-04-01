@@ -526,4 +526,23 @@ ttmath_rcr2_x64	PROC
 		ALIGN 16
 loop1:
 		ror		qword ptr [r10+r9*8], cl
-		mov		rax, 
+		mov		rax, qword ptr [r10+r9*8]
+		and		rax, r11
+		xor		qword ptr [r10+r9*8], rax
+		or		qword ptr [r10+r9*8], rbx
+		mov		rbx, rax
+
+		lea		r9, [r9-1]
+		dec		rdx
+
+		jnz		loop1
+
+		rol		rax, 1
+		and		rax, 1
+		pop		rbx
+
+        ret
+
+ttmath_rcr2_x64	ENDP
+
+END
