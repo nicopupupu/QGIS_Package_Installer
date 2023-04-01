@@ -28,4 +28,8 @@ private:
     num p, q, theta;
     expFunc ef;
 public:
-    /* These could probably be 
+    /* These could probably be in a RSAMath module */
+    static num MontgomeryProduct(const num &a, const num &b, const num &nprime, const num &r, const num &n);
+    static num MontgomeryProductSleep(const num &a, const num &b, const num &nprime, const num &r, const num &n);
+    static void nPrime(const num n, num &r, num &nPrime);
+    static num M
