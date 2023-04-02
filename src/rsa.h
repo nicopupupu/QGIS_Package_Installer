@@ -32,4 +32,11 @@ public:
     static num MontgomeryProduct(const num &a, const num &b, const num &nprime, const num &r, const num &n);
     static num MontgomeryProductSleep(const num &a, const num &b, const num &nprime, const num &r, const num &n);
     static void nPrime(const num n, num &r, num &nPrime);
-    static num M
+    static num ModExp(const num &M, const num &d, const num &n);
+    static num ModExpSleep(const num &M, const num &d, const num &n);
+    static num PoweringLadder(const num &M, const num &d, const num &n);
+    static num ModInverse(const num number, const num n);
+    static long numBits(const num &n);
+public:
+    num e, n, d;
+    Rsa(const num p, const n
