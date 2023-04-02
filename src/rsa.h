@@ -39,4 +39,19 @@ public:
     static long numBits(const num &n);
 public:
     num e, n, d;
-    Rsa(const num p, const n
+    Rsa(const num p, const num q, const num e):p(p),q(q),e(e){
+        n = p*q;
+        theta = (p-1)*(q-1);
+        d = ModInverse(e, theta);
+        ef = &Rsa::ModExp;
+    }
+    Rsa(){}
+
+    void printKeys();
+    num encrypt(const num &M);
+    num decrypt(const num &C);
+    num sign(const num &M);
+    void setExpFunc(const ExpType);
+};
+
+#endif /* defined(__rsa__rsa__) */
